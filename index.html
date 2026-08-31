@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rubix</title>
+<style>
+:root{color-scheme:light;--bg:#f5f5f3;--surface:#fff;--surface-2:#eeeeec;--text:#161616;--text-soft:#676767;--text-faint:#999;--border:#ddd;--border-strong:#c9c9c5;--cube:#111;--cube-line:#f2f2f2;--shadow:0 10px 35px rgba(0,0,0,.08);--content-width:960px;--font:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",Arial,sans-serif}
+@media(prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#111;--surface:#181818;--surface-2:#202020;--text:#f2f2f2;--text-soft:#999;--text-faint:#666;--border:#292929;--border-strong:#383838;--cube:#050505;--cube-line:#eee;--shadow:0 15px 40px rgba(0,0,0,.35)}}
+*{box-sizing:border-box;margin:0;padding:0}html,body{width:100%;height:100%}body{background:var(--bg);color:var(--text);font-family:var(--font);-webkit-font-smoothing:antialiased;overflow:hidden}button,input,textarea{font:inherit}button{border:0;background:none;color:inherit}
+.app{width:100%;height:100dvh;display:grid;grid-template-rows:auto minmax(0,1fr) auto;position:relative;overflow:hidden}
+.header{width:100%;height:72px;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(16px,3vw,42px);position:relative;z-index:20}.header-left,.header-right{display:flex;align-items:center}.header-left{gap:12px}.header-right{gap:8px}
+.cube-button{width:38px;height:38px;display:grid;place-items:center;cursor:pointer;border-radius:11px;transition:background 180ms,transform 180ms}.cube-button:hover{background:var(--surface-2)}.cube-button:active{transform:scale(.93)}
+.cube{width:21px;height:21px;position:relative;transform-style:preserve-3d;transform:rotateX(-28deg) rotateY(34deg);transition:transform 500ms cubic-bezier(.2,.8,.2,1)}.cube.open{transform:rotateX(-24deg) rotateY(120deg) rotateZ(8deg)}
+.cube-face{position:absolute;width:21px;height:21px;background:var(--cube);border:1px solid var(--cube-line)}.cube-face:before,.cube-face:after{content:"";position:absolute;background:var(--cube-line);opacity:.9}.cube-face:before{width:1px;height:100%;left:50%;top:0}.cube-face:after{height:1px;width:100%;left:0;top:50%}.cube-front{transform:translateZ(10.5px)}.cube-back{transform:rotateY(180deg) translateZ(10.5px)}.cube-right{transform:rotateY(90deg) translateZ(10.5px)}.cube-left{transform:rotateY(-90deg) translateZ(10.5px)}.cube-top{transform:rotateX(90deg) translateZ(10.5px)}.cube-bottom{transform:rotateX(-90deg) translateZ(10.5px)}
+.new-chat{height:38px;padding:0 13px;display:flex;align-items:center;gap:8px;border-radius:11px;color:var(--text-soft);cursor:pointer;transition:background 180ms,color 180ms}.new-chat:hover{background:var(--surface-2);color:var(--text)}.new-chat-dots{display:flex;gap:3px}.new-chat-dots span{width:3px;height:3px;border-radius:50%;background:currentColor}.new-chat-label{font-size:13px;font-weight:600}
+.model-selector{position:relative}.model-button{min-height:38px;display:flex;align-items:center;gap:8px;padding:0 12px;border-radius:11px;cursor:pointer;font-size:13px;font-weight:650;transition:background 180ms}.model-button:hover{background:var(--surface-2)}.model-arrow{width:7px;height:7px;border-right:1.5px solid;border-bottom:1.5px solid;transform:rotate(45deg) translateY(-2px);transition:transform 180ms}.model-selector.active .model-arrow{transform:rotate(225deg) translateY(-1px)}
+.model-menu{position:absolute;top:calc(100% + 8px);right:0;width:255px;padding:7px;background:var(--surface);border:1px solid var(--border);border-radius:15px;box-shadow:var(--shadow);opacity:0;visibility:hidden;transform:translateY(-5px) scale(.98);transform-origin:top right;transition:opacity 160ms,visibility 160ms,transform 160ms}.model-selector.active .model-menu{opacity:1;visibility:visible;transform:translateY(0) scale(1)}.model-option{width:100%;padding:11px 12px;display:flex;flex-direction:column;align-items:flex-start;gap:3px;border-radius:10px;text-align:left;cursor:pointer}.model-option:hover,.model-option.selected{background:var(--surface-2)}.model-name{font-size:13px;font-weight:700}.model-description{font-size:11px;line-height:1.4;color:var(--text-soft)}
+.history-panel{position:fixed;top:64px;left:16px;bottom:16px;width:min(330px,calc(100vw - 32px));background:var(--surface);border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow);z-index:50;transform:translateX(-120%);opacity:0;transition:transform 330ms cubic-bezier(.2,.8,.2,1),opacity 220ms}.history-panel.open{transform:translateX(0);opacity:1}.history-inner{height:100%;display:flex;flex-direction:column;padding:15px}.history-header{display:flex;align-items:center;justify-content:space-between;padding:4px 3px 14px}.history-title{font-size:13px;font-weight:700}.history-close{width:30px;height:30px;display:grid;place-items:center;border-radius:9px;color:var(--text-soft);cursor:pointer}.history-close:hover{background:var(--surface-2);color:var(--text)}.history-list{display:flex;flex-direction:column;gap:3px;overflow-y:auto}.history-item{padding:11px 10px;border-radius:10px;cursor:pointer}.history-item:hover{background:var(--surface-2)}.history-item-title{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.history-item-time{margin-top:3px;font-size:10px;color:var(--text-faint)}.history-backdrop{position:fixed;inset:0;z-index:40;background:transparent;opacity:0;visibility:hidden;transition:opacity 220ms,visibility 220ms}.history-backdrop.open{opacity:1;visibility:visible}
+.conversation{width:100%;min-height:0;overflow-y:auto;scrollbar-width:thin}.conversation-inner{width:min(var(--content-width),calc(100% - 32px));min-height:100%;margin:0 auto;display:flex;flex-direction:column;justify-content:flex-end;padding:40px 0 clamp(24px,6vh,80px)}
+.welcome{width:100%;display:flex;flex-direction:column;align-items:center;text-align:center;padding:30px 0;animation:welcomeIn 450ms ease both}@keyframes welcomeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}.welcome-mark{width:42px;height:42px;margin-bottom:18px;display:grid;place-items:center}.welcome-title{font-size:clamp(22px,3vw,30px);line-height:1.1;font-weight:750;letter-spacing:-.04em}.welcome-subtitle{margin-top:9px;max-width:400px;color:var(--text-soft);font-size:13px;line-height:1.5}
+.messages{display:flex;flex-direction:column;gap:24px;width:100%}.message{display:flex;animation:messageIn 280ms ease both}@keyframes messageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}.message.user{justify-content:flex-end}.message-content{max-width:min(720px,88%);font-size:14px;line-height:1.65}.message.user .message-content{padding:10px 14px;background:var(--surface-2);border-radius:15px 15px 4px 15px}.ai-message{display:flex;align-items:flex-start;gap:12px}.ai-mini-cube{flex:0 0 auto;width:21px;height:21px;margin-top:2px}.ai-text{padding-top:0}
+.thinking{display:flex;align-items:center;gap:12px;min-height:24px;animation:thinkingIn 250ms ease both}@keyframes thinkingIn{from{opacity:0}to{opacity:1}}.thinking-cube{width:21px;height:21px;position:relative;transform-style:preserve-3d;transform:rotateX(-28deg) rotateY(34deg);animation:thinkCube 1.8s ease-in-out infinite}@keyframes thinkCube{0%{transform:rotateX(-28deg) rotateY(34deg)}50%{transform:rotateX(-28deg) rotateY(214deg)}100%{transform:rotateX(-28deg) rotateY(394deg)}}.thinking-text{position:relative;font-size:12px;font-weight:650;font-style:italic;letter-spacing:.01em;color:var(--text-soft);overflow:hidden}.thinking-text:after{content:"";position:absolute;top:0;bottom:0;width:38px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.75),transparent);transform:skewX(-20deg);animation:shimmer 1.5s ease-in-out infinite}@media(prefers-color-scheme:dark){.thinking-text:after{background:linear-gradient(90deg,transparent,rgba(255,255,255,.22),transparent)}}@keyframes shimmer{from{left:-45px}to{left:calc(100% + 45px)}}
+.composer-area{width:100%;padding:0 clamp(16px,3vw,42px) clamp(16px,2vw,26px);position:relative;z-index:20}.composer-wrap{width:min(var(--content-width),100%);margin:0 auto}.composer{width:100%;min-height:58px;display:flex;align-items:flex-end;padding:8px;background:var(--surface);border:1px solid var(--border-strong);border-radius:18px;transition:border-color 180ms,box-shadow 180ms}.composer:focus-within{border-color:var(--text-soft);box-shadow:0 0 0 3px color-mix(in srgb,var(--text) 5%,transparent)}.composer-input{flex:1;min-width:0;min-height:40px;max-height:180px;padding:10px;resize:none;border:0;outline:0;background:transparent;color:var(--text);font-size:14px;line-height:1.45;overflow-y:auto}.composer-input::placeholder{color:var(--text-faint)}.composer-actions{display:flex;align-items:center;gap:4px}.composer-button{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;color:var(--text-soft);cursor:pointer;transition:background 150ms,color 150ms,transform 150ms}.composer-button:hover{background:var(--surface-2);color:var(--text)}.composer-button:active{transform:scale(.93)}
+.pin-icon{width:16px;height:16px;position:relative;border:1.5px solid;border-radius:4px 4px 7px 7px;transform:rotate(-45deg)}.pin-icon:after{content:"";position:absolute;width:1.5px;height:7px;background:currentColor;bottom:-5px;left:50%;transform:translateX(-50%)}.mic-icon{width:13px;height:18px;border:1.5px solid;border-radius:8px;position:relative}.mic-icon:before{content:"";position:absolute;width:20px;height:12px;border:1.5px solid;border-top:0;border-radius:0 0 12px 12px;left:50%;bottom:-7px;transform:translateX(-50%)}.mic-icon:after{content:"";position:absolute;width:1.5px;height:5px;background:currentColor;bottom:-11px;left:50%;transform:translateX(-50%)}
+.pin-menu{position:absolute;left:0;bottom:calc(100% + 9px);width:220px;padding:7px;background:var(--surface);border:1px solid var(--border);border-radius:15px;box-shadow:var(--shadow);opacity:0;visibility:hidden;transform:translateY(6px) scale(.98);transition:opacity 160ms,visibility 160ms,transform 160ms}.pin-menu.open{opacity:1;visibility:visible;transform:translateY(0) scale(1)}.pin-option{width:100%;display:flex;align-items:center;gap:11px;padding:10px;border-radius:10px;cursor:pointer;text-align:left}.pin-option:hover{background:var(--surface-2)}.pin-option-icon{width:28px;height:28px;display:grid;place-items:center;border-radius:8px;background:var(--surface-2);font-size:12px}.pin-option-name{font-size:12px;font-weight:650}.pin-option-description{margin-top:2px;font-size:10px;color:var(--text-faint)}
+.send-button{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:var(--text);color:var(--bg);cursor:pointer;transition:transform 150ms,opacity 150ms}.send-button:hover{transform:translateY(-1px)}.send-button:active{transform:scale(.93)}.send-button.disabled{opacity:.35;pointer-events:none}.send-arrow{width:14px;height:14px;border-top:1.5px solid;border-right:1.5px solid;transform:rotate(-45deg) translate(-1px,1px)}.composer-note{text-align:center;padding-top:9px;font-size:10px;color:var(--text-faint)}
+@media(max-width:600px){.header{height:62px;padding:0 11px}.new-chat{padding:0 9px}.new-chat-label{display:none}.model-button{padding:0 9px}.model-menu{right:-4px;width:min(255px,calc(100vw - 24px))}.conversation-inner{width:calc(100% - 24px);padding:25px 0 30px}.composer-area{padding:0 10px 12px}.composer{border-radius:16px}.message-content{max-width:92%;font-size:13px}.history-panel{top:10px;left:10px;bottom:10px;width:calc(100vw - 20px);border-radius:17px}}
+@media(min-width:601px) and (max-width:1024px){.conversation-inner{width:min(760px,calc(100% - 40px))}}
+@media(min-width:1800px){:root{--content-width:1080px}.header{height:80px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="header">
+<div class="header-left">
+<button class="cube-button" id="cubeButton" aria-label="Open conversation history"><div class="cube" id="headerCube"><div class="cube-face cube-front"></div><div class="cube-face cube-back"></div><div class="cube-face cube-right"></div><div class="cube-face cube-left"></div><div class="cube-face cube-top"></div><div class="cube-face cube-bottom"></div></div></button>
+<button class="new-chat" id="newChatButton"><span class="new-chat-dots"><span></span><span></span><span></span></span><span class="new-chat-label">New chat</span></button>
+</div>
+<div class="header-right">
+<div class="model-selector" id="modelSelector">
+<button class="model-button" id="modelButton"><span id="currentModel">Rubix 1.2</span><span class="model-arrow"></span></button>
+<div class="model-menu">
+<button class="model-option selected" data-model="Rubix 1.2"><span class="model-name">Rubix 1.2</span><span class="model-description">Base Version</span></button>
+<button class="model-option" data-model="Rubix Deep Thinking"><span class="model-name">Rubix Deep Thinking</span><span class="model-description">Deep search &amp; extended reasoning</span></button>
+<button class="model-option" data-model="Rubix Pro"><span class="model-name">Rubix Pro</span><span class="model-description">Rubixing Logic</span></button>
+</div>
+</div>
+</div>
+</header>
+
+<div class="history-backdrop" id="historyBackdrop"></div>
+<aside class="history-panel" id="historyPanel">
+<div class="history-inner">
+<div class="history-header"><span class="history-title">Conversations</span><button class="history-close" id="historyClose" aria-label="Close history">×</button></div>
+<div class="history-list" id="historyList">
+<div class="history-item"><div class="history-item-title">Welcome to Rubix</div><div class="history-item-time">Just now</div></div>
+<div class="history-item"><div class="history-item-title">Exploring an idea</div><div class="history-item-time">Earlier</div></div>
+<div class="history-item"><div class="history-item-title">Project discussion</div><div class="history-item-time">Earlier</div></div>
+</div>
+</div>
+</aside>
+
+<main class="conversation" id="conversation">
+<div class="conversation-inner">
+<section class="welcome" id="welcome">
+<div class="welcome-mark"><div class="cube"><div class="cube-face cube-front"></div><div class="cube-face cube-back"></div><div class="cube-face cube-right"></div><div class="cube-face cube-left"></div><div class="cube-face cube-top"></div><div class="cube-face cube-bottom"></div></div></div>
+<h1 class="welcome-title">Talk to Rubix</h1>
+<p class="welcome-subtitle">Think with it. Build with it. Rubix will figure out the rest.</p>
+</section>
+<div class="messages" id="messages"></div>
+</div>
+</main>
+
+<footer class="composer-area">
+<div class="composer-wrap">
+<div class="pin-menu" id="pinMenu">
+<button class="pin-option"><span class="pin-option-icon">↑</span><span><div class="pin-option-name">Upload file</div><div class="pin-option-description">Add something for Rubix to read</div></span></button>
+<button class="pin-option"><span class="pin-option-icon">◇</span><span><div class="pin-option-name">Add image</div><div class="pin-option-description">Give Rubix something visual</div></span></button>
+<button class="pin-option"><span class="pin-option-icon">#</span><span><div class="pin-option-name">Add context</div><div class="pin-option-description">Attach additional information</div></span></button>
+</div>
+<div class="composer" id="composer">
+<textarea class="composer-input" id="messageInput" rows="1" placeholder="Talk to Rubix..." autocomplete="off"></textarea>
+<div class="composer-actions">
+<button class="composer-button" id="pinButton" aria-label="Attach"><span class="pin-icon"></span></button>
+<button class="composer-button" id="micButton" aria-label="Voice input"><span class="mic-icon"></span></button>
+<button class="send-button disabled" id="sendButton" aria-label="Send message"><span class="send-arrow"></span></button>
+</div>
+</div>
+<div class="composer-note">Rubix can make mistakes. Check important information.</div>
+</div>
+</footer>
+</div>
+
+<script>
+const state={historyOpen:false,modelOpen:false,pinOpen:false,thinking:false,messages:[]};
+const cubeButton=document.getElementById("cubeButton"),headerCube=document.getElementById("headerCube"),historyPanel=document.getElementById("historyPanel"),historyBackdrop=document.getElementById("historyBackdrop"),historyClose=document.getElementById("historyClose"),modelSelector=document.getElementById("modelSelector"),modelButton=document.getElementById("modelButton"),currentModel=document.getElementById("currentModel"),modelOptions=document.querySelectorAll(".model-option"),newChatButton=document.getElementById("newChatButton"),pinButton=document.getElementById("pinButton"),pinMenu=document.getElementById("pinMenu"),messageInput=document.getElementById("messageInput"),sendButton=document.getElementById("sendButton"),messages=document.getElementById("messages"),welcome=document.getElementById("welcome"),conversation=document.getElementById("conversation");
+
+function openHistory(){state.historyOpen=true;historyPanel.classList.add("open");historyBackdrop.classList.add("open");headerCube.classList.add("open")}
+function closeHistory(){state.historyOpen=false;historyPanel.classList.remove("open");historyBackdrop.classList.remove("open");headerCube.classList.remove("open")}
+cubeButton.addEventListener("click",e=>{e.stopPropagation();state.historyOpen?closeHistory():openHistory()});
+historyClose.addEventListener("click",closeHistory);historyBackdrop.addEventListener("click",closeHistory);
+
+modelButton.addEventListener("click",e=>{e.stopPropagation();state.modelOpen=!state.modelOpen;modelSelector.classList.toggle("active",state.modelOpen);closePin()});
+modelOptions.forEach(option=>option.addEventListener("click",()=>{currentModel.textContent=option.dataset.model;modelOptions.forEach(item=>item.classList.remove("selected"));option.classList.add("selected");state.modelOpen=false;modelSelector.classList.remove("active")}));
+function closePin(){state.pinOpen=false;pinMenu.classList.remove("open")}
+pinButton.addEventListener("click",e=>{e.stopPropagation();state.pinOpen=!state.pinOpen;pinMenu.classList.toggle("open",state.pinOpen);modelSelector.classList.remove("active")});
+document.addEventListener("click",e=>{if(!modelSelector.contains(e.target)){state.modelOpen=false;modelSelector.classList.remove("active")}if(!pinMenu.contains(e.target)&&!pinButton.contains(e.target))closePin()});
+
+messageInput.addEventListener("input",()=>{messageInput.style.height="auto";messageInput.style.height=Math.min(messageInput.scrollHeight,180)+"px";sendButton.classList.toggle("disabled",!messageInput.value.trim())});
+messageInput.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage()}});
+sendButton.addEventListener("click",sendMessage);
+
+function addUserMessage(text){const message=document.createElement("div");message.className="message user";message.innerHTML=`<div class="message-content">${escapeHTML(text)}</div>`;messages.appendChild(message)}
+function addAIMessage(text){const message=document.createElement("div");message.className="message ai";message.innerHTML=`<div class="ai-message"><div class="ai-mini-cube"><div class="thinking-cube"><div class="cube-face cube-front"></div><div class="cube-face cube-back"></div><div class="cube-face cube-right"></div><div class="cube-face cube-left"></div><div class="cube-face cube-top"></div><div class="cube-face cube-bottom"></div></div></div><div class="message-content ai-text">${escapeHTML(text)}</div></div>`;messages.appendChild(message)}
+function showThinking(){state.thinking=true;const thinking=document.createElement("div");thinking.className="thinking";thinking.id="thinkingMessage";thinking.innerHTML=`<div class="thinking-cube"><div class="cube-face cube-front"></div><div class="cube-face cube-back"></div><div class="cube-face cube-right"></div><div class="cube-face cube-left"></div><div class="cube-face cube-top"></div><div class="cube-face cube-bottom"></div></div><div class="thinking-text">rubixing...</div>`;messages.appendChild(thinking);scrollToBottom()}
+function hideThinking(){state.thinking=false;const thinking=document.getElementById("thinkingMessage");if(thinking)thinking.remove()}
+function sendMessage(){if(state.thinking)return;const text=messageInput.value.trim();if(!text)return;welcome.style.display="none";addUserMessage(text);state.messages.push({role:"user",content:text});messageInput.value="";messageInput.style.height="auto";sendButton.classList.add("disabled");scrollToBottom();showThinking();setTimeout(()=>{hideThinking();addAIMessage("Hello there, I'm Rubix.");state.messages.push({role:"assistant",content:"Hello there, I'm Rubix."});scrollToBottom()},1450)}
+newChatButton.addEventListener("click",()=>{messages.innerHTML="";state.messages=[];welcome.style.display="flex";messageInput.value="";messageInput.style.height="auto";sendButton.classList.add("disabled");closeHistory();closePin()});
+document.getElementById("micButton").addEventListener("click",()=>messageInput.focus());
+function scrollToBottom(){requestAnimationFrame(()=>conversation.scrollTo({top:conversation.scrollHeight,behavior:"smooth"}))}
+function escapeHTML(value){const div=document.createElement("div");div.textContent=value;return div.innerHTML}
+window.addEventListener("load",()=>messageInput.focus());
+</script>
+</body>
+</html>
