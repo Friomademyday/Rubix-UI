@@ -1,259 +1,182 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rubix AI</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-
-    body {
-      background-color: #111111;
-      color: #FFFFFF;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* Layout Containers */
-    .app-header {
-      height: 60px;
-      border-bottom: 1px solid #222;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 20px;
-    }
-
-    .chat-container {
-      flex: 1;
-      overflow-y: auto;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    /* Message Styling */
-    .message {
+/* AI Message Wrapper */
+    .ai-message-wrapper {
+      align-self: flex-start;
       max-width: 70%;
-      padding: 12px 16px;
-      border-radius: 12px;
-      line-height: 1.5;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
 
-    .user-message {
-      align-self: flex-end;
-      background-color: #2563EB;
-      color: #FFF;
+    .ai-message-wrapper .ai-message {
+      max-width: 100%;
     }
 
-    .ai-message {
-      align-self: flex-start;
-      background-color: #1E1E1E;
-      border: 1px solid #333;
-      color: #EEE;
-    }
-
-    /* Indicator Block */
-    .thinking-wrapper {
+    /* Message Action Bar */
+    .message-actions {
       display: flex;
       align-items: center;
-      gap: 10px;
-      align-self: flex-start;
-      background-color: #1E1E1E;
-      border: 1px solid #333;
-      padding: 8px 14px;
-      border-radius: 12px;
+      gap: 8px;
+      padding-left: 4px;
     }
 
-    #cube-canvas {
-      width: 24px;
-      height: 24px;
-      display: block;
-    }
-
-    .thinking-text {
-      font-size: 14px;
-      color: #888;
-      animation: pulse 1.5s infinite alternate;
-    }
-
-    @keyframes pulse {
-      from { opacity: 0.4; }
-      to { opacity: 1.0; }
-    }
-
-    /* Composer */
-    .composer {
-      padding: 20px;
-      border-top: 1px solid #222;
-      display: flex;
-      gap: 10px;
-    }
-
-    input[type="text"] {
-      flex: 1;
-      background-color: #1E1E1E;
-      border: 1px solid #333;
-      border-radius: 8px;
-      padding: 12px 16px;
-      color: #FFF;
-      outline: none;
-    }
-
-    button {
-      background-color: #2563EB;
-      color: #FFF;
+    .action-btn {
+      background: transparent;
       border: none;
-      padding: 0 20px;
-      border-radius: 8px;
+      color: #888;
+      padding: 4px;
+      border-radius: 4px;
       cursor: pointer;
-      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      line-height: 1;
     }
 
-    button:hover {
-      background-color: #1D4ED8;
+    .action-btn:hover {
+      background-color: #222;
+      color: #FFF;
     }
-  </style>
-</head>
-<body>
 
-  <header class="app-header">
-    <h3>Rubix AI</h3>
-  </header>
+    .action-btn svg {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+    }
 
-  <main class="chat-container" id="chat-container">
-    <div class="message ai-message">Hello! Ask me anything to get started.</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    function createActionBar() {
+      const actionsContainer = document.createElement('div');
+      actionsContainer.className = 'message-actions';
+
+      actionsContainer.innerHTML = `
+        <button class="action-btn" title="Retry" onclick="retryMessage(this)">
+          <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+        </button>
+        <button class="action-btn" title="Good response" onclick="toggleLike(this)">
+          <svg viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.58 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg>
+        </button>
+        <button class="action-btn" title="Bad response" onclick="toggleDislike(this)">
+          <svg viewBox="0 0 24 24"><path d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L8.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z"/></svg>
+        </button>
+        <button class="action-btn" title="Copy" onclick="copyMessageText(this)">
+          <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+        </button>
+        <button class="action-btn" title="More" onclick="openMoreMenu(this)">
+          <svg viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+        </button>
+      `;
+      return actionsContainer;
+    }
+
+    function createAiMessageWrapper(text) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'ai-message-wrapper';
+
+      const aiMsg = document.createElement('div');
+      aiMsg.className = 'message ai-message';
+      aiMsg.textContent = text;
+
+      wrapper.appendChild(aiMsg);
+      wrapper.appendChild(createActionBar());
+
+      return wrapper;
+    }
+
+    function copyMessageText(button) {
+      const wrapper = button.closest('.ai-message-wrapper');
+      const text = wrapper.querySelector('.ai-message').textContent;
+      navigator.clipboard.writeText(text);
+    }
+
+    function retryMessage(button) {
+      sendMessage();
+    }
+
+    function toggleLike(button) {
+      button.style.color = button.style.color === 'rgb(37, 99, 235)' ? '#888' : '#2563EB';
+    }
+
+    function toggleDislike(button) {
+      button.style.color = button.style.color === 'rgb(220, 38, 38)' ? '#888' : '#DC2626';
+    }
+
+    function openMoreMenu(button) {
+      alert('More options menu clicked');
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<main class="chat-container" id="chat-container">
+    <div class="ai-message-wrapper">
+      <div class="message ai-message">Hello! Ask me anything to get started.</div>
+      <div class="message-actions">
+        <button class="action-btn" title="Retry" onclick="retryMessage(this)"><svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></button>
+        <button class="action-btn" title="Good response" onclick="toggleLike(this)"><svg viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.58 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg></button>
+        <button class="action-btn" title="Bad response" onclick="toggleDislike(this)"><svg viewBox="0 0 24 24"><path d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L8.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z"/></svg></button>
+        <button class="action-btn" title="Copy" onclick="copyMessageText(this)"><svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg></button>
+        <button class="action-btn" title="More" onclick="openMoreMenu(this)"><svg viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg></button>
+      </div>
+    </div>
   </main>
 
-  <div id="thinking-indicator" class="thinking-wrapper" style="display: none;">
-    <canvas id="cube-canvas"></canvas>
-    <span class="thinking-text" id="thinking-text">Rubixing...</span>
-  </div>
 
-  <footer class="composer">
-    <input type="text" id="user-input" placeholder="Type a message..." onkeydown="handleKey(event)">
-    <button onclick="sendMessage()">Send</button>
-  </footer>
 
-  <script>
-    // --- 3D RUBIK'S CUBE (THREE.JS ENGINE) ---
-    let scene, camera, renderer, rubiksCube;
-    let isSpinning = false;
-    let animationFrameId;
 
-    function initCube() {
-      const canvas = document.getElementById('cube-canvas');
-      
-      scene = new THREE.Scene();
-      camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-      camera.position.set(3, 3, 3);
-      camera.lookAt(0, 0, 0);
 
-      renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
-      renderer.setSize(24, 24);
-      renderer.setPixelRatio(window.devicePixelRatio);
 
-      // Create Rubik's Cube geometry (3x3 grid using standard colors)
-      rubiksCube = new THREE.Group();
-      const faceColors = [0xb71c1c, 0x0d47a1, 0x1b5e20, 0xe65100, 0xffeb3b, 0xffffff];
-      const materials = faceColors.map(color => new THREE.MeshBasicMaterial({ color }));
 
-      for (let x = -1; x <= 1; x++) {
-        for (let y = -1; y <= 1; y++) {
-          for (let z = -1; z <= 1; z++) {
-            const geo = new THREE.BoxGeometry(0.56, 0.56, 0.56);
-            const subCube = new THREE.Mesh(geo, materials);
-            subCube.position.set(x * 0.6, y * 0.6, z * 0.6);
-            
-            // Add subtle wireframe edges to distinguish sub-blocks
-            const edges = new THREE.EdgesGeometry(geo);
-            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 }));
-            subCube.add(line);
-            
-            rubiksCube.add(subCube);
-          }
-        }
-      }
 
-      scene.add(rubiksCube);
-      renderer.render(scene, camera);
-    }
 
-    function animateCube() {
-      if (isSpinning) {
-        rubiksCube.rotation.x += 0.03;
-        rubiksCube.rotation.y += 0.04;
-        renderer.render(scene, camera);
-        animationFrameId = requestAnimationFrame(animateCube);
-      }
-    }
 
-    function startCubeSpin() {
-      if (!isSpinning) {
-        isSpinning = true;
-        animateCube();
-      }
-    }
 
-    function stopCubeSpin() {
-      isSpinning = false;
-      cancelAnimationFrame(animationFrameId);
-    }
 
-    // --- APPLICATION LOGIC ---
-    window.addEventListener('DOMContentLoaded', () => {
-      initCube();
-    });
 
-    function handleKey(event) {
-      if (event.key === 'Enter') sendMessage();
-    }
 
-    function sendMessage() {
-      const input = document.getElementById('user-input');
-      const text = input.value.trim();
-      if (!text) return;
-
-      const chatContainer = document.getElementById('chat-container');
-
-      // Append User Message
-      const userMsg = document.createElement('div');
-      userMsg.className = 'message user-message';
-      userMsg.textContent = text;
-      chatContainer.appendChild(userMsg);
-      input.value = '';
-
-      // Show & Start Indicator Spin
-      const indicator = document.getElementById('thinking-indicator');
-      chatContainer.appendChild(indicator);
-      indicator.style.display = 'flex';
-      startCubeSpin();
-
-      chatContainer.scrollTop = chatContainer.scrollHeight;
-
-      // Simulate AI Response Delay
+// Simulate AI Response Delay
       setTimeout(() => {
         // Stop Cube Spin
         stopCubeSpin();
         indicator.style.display = 'none';
 
-        // Append AI Response
-        const aiMsg = document.createElement('div');
-        aiMsg.className = 'message ai-message';
-        aiMsg.textContent = 'This response was calculated using the JS WebGL rendering engine.';
-        chatContainer.appendChild(aiMsg);
+        // Append AI Response with Action Bar
+        const aiWrapper = createAiMessageWrapper('This response was calculated using the JS WebGL rendering engine.');
+        chatContainer.appendChild(aiWrapper);
 
         chatContainer.scrollTop = chatContainer.scrollHeight;
       }, 2500);
-    }
-  </script>
-</body>
-</html>
+
+
+
+
+
+    
