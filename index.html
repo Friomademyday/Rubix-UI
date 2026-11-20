@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scribe</title>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--card:#f4f4f6;--mut:#666;--ac:#6b4eff}
+@media(prefers-color-scheme:dark){:root{--bg:#121214;--fg:#eee;--card:#1d1d21;--mut:#999}}
+*{box-sizing:border-box}body{margin:auto;background:var(--bg);color:var(--fg);font:15px/1.6 system-ui,sans-serif;padding:16px;max-width:860px}
+textarea,input{font:inherit;color:inherit;background:var(--card);border:1px solid #8884;border-radius:8px;padding:8px;width:100%;margin:4px 0}
+button{font:inherit;cursor:pointer;background:var(--ac);color:#fff;border:0;border-radius:8px;padding:8px 16px}
+.c{background:var(--card);border-radius:10px;padding:12px;margin:10px 0}pre{white-space:pre-wrap;word-break:break-word;font-size:12px;margin:0}
+#out{white-space:pre-wrap;font-family:Georgia,serif;font-size:16px}.m{color:var(--mut);font-size:13px}summary{cursor:pointer;font-weight:600}
+</style></head><body>
+<h2>Scribe <span class="m">Generalized AWE</span></h2>
+<div class="c"><textarea id="prompt" rows="3" placeholder="hey Scribe can you generate a dark story about a brave girl in Benin?"></textarea>
+<button id="go">Generate</button> <span class="m" id="st"></span></div>
+<details class="c"><summary>Intake (required for letters, vows, apologies)</summary>
+<input id="iOcc" placeholder="Occasion"><input id="iAdd" placeholder="Addressee"><textarea id="iSpec" rows="3" placeholder="2-3 true specifics from you, one per line"></textarea></details>
+<details class="c"><summary>API settings &amp; test</summary>
+<input id="cUrl" placeholder="API url (chat/completions)"><input id="cKey" type="password" placeholder="API key (stored only in this browser)"><input id="cModel" placeholder="Model id">
+<button id="cSave">Save</button> <button id="cTest">Test API</button><pre id="cMsg" class="m" style="margin-top:8px"></pre></details>
+<div class="c"><div id="out" class="m">Output appears here.</div></div>
+<details class="c" open><summary>Veto / integrity report</summary><pre id="vet"></pre></details>
+<details class="c"><summary>1 · Brief (S, A, O, E, F, Depth)</summary><pre id="brf"></pre></details>
+<details class="c"><summary>2 · World (entities t-1 → t+1, causal events)</summary><pre id="wld"></pre></details>
+<details class="c"><summary>Drafts &amp; critic passes</summary><pre id="log"></pre></details>
+<details class="c" id="dbgd"><summary>Error log / debug (every API call)</summary><pre id="dbg"></pre></details>
+<script>
+/* ================= CONFIG: fill these in ================= */
+const CONFIG={
+ api:{url:"https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key:"", model:"gemini-2.5-flash"},   // key is entered in the Settings panel (stored only in this browser), never in the repo
+ temperature:{brief:0, world:0.4, render:0.8, critic:0, revise:0.5},
+ maxVetoPasses:3
+};
+/* ================= SCREENSHOT TABLE: forms, depth, form-aware veto ================= */
+const FORMS={ // depth: High=.9 Medium=.5 Low=.2
+ narrative:{depth:.9,veto:"prop entities, effects without cause"},
+ lyric:{depth:.2,veto:"stock imagery; singability and repeating hook for songs"},
+ rhetorical:{depth:.5,veto:"generic uplift; deliberate repetition allowed"},
+ personal:{depth:.5,veto:"invented facts about the user's life"},
+ comedic:{depth:.5,veto:"tired setups; real gap between belief and reality"}
+};
+const CLICHES=["little did","shivers down","shiver down","heart pounded","heart raced","heart skipped","eyes sparkled","a testament to","tapestry","delve","in the realm of","sense of foreboding","something stirred","air was thick","ancient evil","whispers of","dark and stormy","once upon a time","let out a breath","breath she didn't know","breath he didn't know","little did they","against all odds","beacon of hope","the weight of the world"];
+const STOCK=["moon","stars","fire","tears","rain","heart","wings","dreams"];
+const UPLIFT=["believe in yourself","the future is bright","together we can do anything","never give up","sky is the limit"];
+const TIRED=["a man walks into a bar","why did the chicken","take my wife","i'm not saying","walks into a bar"];
+const $=id=>document.getElementById(id);
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+/* ================= API ================= */
+let STAGE="",LASTFINISH="";const DBG=[];
+function dbg(m){DBG.push(new Date().toLocaleTimeString()+"  "+m);const e=$("dbg");if(e)e.textContent=DBG.join("\n")}
+const HINTS={
+ 400:"Bad request. Usually a wrong model id, an unsupported parameter, or (on Google) an invalid API key.",
+ 401:"Key missing or wrong. Re-paste the key in API settings.",
+ 403:"Key rejected or not allowed. Common causes: Google auto-disabled a key that was published in a public repo; the key has HTTP-referrer/API restrictions that exclude this site; the Generative Language API is not enabled; or the account/region lacks access. Create a NEW key and enter it in API settings.",
+ 404:"Not found. Either the URL path is wrong (must end in /chat/completions) or the model id does not exist for this key. Press Test API to list valid model ids.",
+ 408:"Request timed out on the provider side.",
+ 413:"Request too large for the model context.",
+ 429:"Rate limit or quota hit (free tiers allow few requests per minute; this app makes several calls per story). Wait a minute, or use a model with a higher quota.",
+ 500:"Provider internal error. Usually temporary.",502:"Provider gateway error. Usually temporary.",503:"Model overloaded or unavailable. Usually temporary.",504:"Provider gateway timeout."};
+function fail(status,raw,stage){
+ let msg=String(raw||"").slice(0,400);
+ try{let j=JSON.parse(raw);j=Array.isArray(j)?j[0]:j;msg=j?.error?.message||j?.message||msg;if(j?.error?.status)msg=j.error.status+": "+msg}catch(e){}
+ let host="?",path="";try{const u=new URL(CONFIG.api.url);host=u.host;path=u.pathname}catch(e){}
+ return new Error(`HTTP ${status} at stage "${stage}"\nProvider said: ${msg||"(empty body)"}\nLikely cause: ${HINTS[status]||"Unexpected status; see provider message."}\nEndpoint: ${host}${path}\nModel: ${CONFIG.api.model}`)}
+async function api(system,user,temp){
+ const c=CONFIG.api,stage=STAGE||"?";
+ if(!c.url)throw new Error(`Stage "${stage}": API url is blank. Open "API settings" and fill it in.`);
+ if(!c.key)throw new Error(`Stage "${stage}": API key is blank. Open "API settings", paste a key, press Save.`);
+ if(!c.model)throw new Error(`Stage "${stage}": model id is blank. Open "API settings".`);
+ let last;
+ for(let at=1;at<=3;at++){
+  const t0=performance.now(),ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),90000);let r,raw;
+  try{
+   r=await fetch(c.url,{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Authorization:"Bearer "+c.key},
+    body:JSON.stringify({model:c.model,temperature:temp,messages:[{role:"system",content:system},{role:"user",content:user}]})});
+   raw=await r.text();
+  }catch(e){
+   const ms=Math.round(performance.now()-t0);
+   last=new Error(e.name==="AbortError"
+    ?`Timeout at stage "${stage}": no reply in 90s (attempt ${at}/3).`
+    :`Network error at stage "${stage}": ${e.message}. The request never got an HTTP response. Causes: no internet, the browser blocked it (CORS), an ad/content blocker, a wrong host in the URL, or the provider is down.`);
+   dbg(`[${stage}] attempt ${at} FAILED after ${ms}ms: ${e.name}: ${e.message}`);
+   if(at<3){await new Promise(z=>setTimeout(z,1500*at));continue}throw last}
+  finally{clearTimeout(to)}
+  const ms=Math.round(performance.now()-t0);
+  if(!r.ok){
+   last=fail(r.status,raw,stage);dbg(`[${stage}] attempt ${at} HTTP ${r.status} in ${ms}ms: ${raw.slice(0,300)}`);
+   if((r.status===429||r.status>=500)&&at<3){await new Promise(z=>setTimeout(z,2500*at));continue}throw last}
+  let j;try{j=JSON.parse(raw)}catch(e){throw new Error(`Stage "${stage}": HTTP ${r.status} but the body was not JSON. Wrong URL (a web page instead of an API?). Body starts: ${raw.slice(0,200)}`)}
+  const ch=j.choices?.[0];LASTFINISH=ch?.finish_reason||"";
+  const t=ch?.message?.content??j.content?.[0]?.text??"";
+  dbg(`[${stage}] ok in ${ms}ms, finish_reason=${LASTFINISH||"?"}, ${t.length} chars`);
+  if(!t){throw new Error(`Stage "${stage}": the model returned an empty reply. finish_reason=${LASTFINISH||"none"}${LASTFINISH==="content_filter"||LASTFINISH==="SAFETY"?" (blocked by the provider's safety filter; rephrase the prompt)":""}${j.error?"; error: "+(j.error.message||JSON.stringify(j.error)):""}. Raw: ${raw.slice(0,250)}`)}
+  return t.trim()}
+ throw last}
+async function apiJSON(system,user,temp){
+ let t="";
+ for(let i=0;i<2;i++){t=await api(system+"\nOutput ONLY one valid JSON object. No prose, no code fences.",user,temp);
+  const m=t.replace(/```json|```/g,"").match(/\{[\s\S]*\}/);
+  if(m){try{return JSON.parse(m[0])}catch(e){dbg(`[${STAGE}] JSON parse failed (try ${i+1}/2): ${e.message}`)}}
+  else dbg(`[${STAGE}] no JSON object found (try ${i+1}/2)`)}
+ throw new Error(`Stage "${STAGE}": model did not return valid JSON after 2 tries.${LASTFINISH==="length"?" Output was cut off (finish_reason=length): the reply hit the token limit.":""}\nReply started: ${t.slice(0,300)}`)}
+/* ================= STEP 1: BRIEF (S, A, O, E, F, Depth) ================= */
+const BRIEF_SYS=`You are the intake stage of a writing system. You do NOT write the piece. Translate the request into a structured brief.
+Variables: S Speaker (narrator, orator, letter writer), A Addressee (person, crowd, deity, the dead, one's past self, nobody), O Occasion (why the text exists now), E Effect (what should differ in the receiver after the text), F Form (meter, rhyme, length, medium: read/sung/spoken), Depth 0 to 1 (how much of the simulated world is on the page versus implied).
+Form category must be one of: narrative (stories, scripts, flash fiction; depth high ~0.9), lyric (poems, songs; low ~0.2), rhetorical (speeches, toasts, eulogies, pitches; medium ~0.5), personal (letters, vows, apologies; medium ~0.5), comedic (sketches, stand-up, satire; medium ~0.5). For forms not listed, pick the closest category and say so in "notes".
+Keys: category, S, A, O, E, F:{meter,rhyme,length,medium}, depth, mood, setting, era, topic, protagonist:{gender,traits,origin}, requires_intake (true only for personal), notes.
+Use "" or null for unknown. Never invent facts about the user's own life.`;
+/* ================= STEP 2: SIMULATE THE WORLD ================= */
+const WORLD_SYS=`You are the world-simulation stage (Autonomous World Equation, generalized). Do not write the piece. Build the world behind the text as data.
+Axioms you must obey:
+1 Equality of Reason: X0 (the lens the text follows; for non-story forms the Speaker S) has no privilege. Every other entity Xn carries a reason as real as X0's.
+2 No Prop Existence: no entity exists solely for X0. If you cannot honestly write an entity's t-1 and t+1, do not include it.
+3 Environment is Alive: weather, places, rumors, laws, shame, time can be entities (type env or abstract) and need their own reason (e.g. rain: return to the sea).
+4 Conservation of Consequence: every event after the first has a cause: an earlier event's impact transmitted through an entity. Nothing appears from nothing.
+Every entity named on the page needs: reason (why it exists when no one is watching; NOT its function for X0), t_minus_1 (before X0 meets it), t_now, t_plus_1 (after, differing, in line with the Effect E), D (domino weight 1-100: how far its causes travel). Do NOT output any R or integrity value: R is discovered by independent tests, never given by the author. Entity count and events on the page scale with Depth (high = many on page, low = mostly implied).
+Each event is a cause chain C = {trigger (name of an entity), transmission (how it travels), impact (what it changes)}, with source and target entity names, damage 0-1 (how much it breaks the target's drive), and cause (id of the earlier event that fed it, null only for the first).
+For personal forms use ONLY facts in the intake. Never invent biography, names, dates or places.
+Keys: C_t_minus_1 (why the text exists now), world_t_plus_1, entities:[{name,type(human|env|abstract),is_main,named_on_page,aliases:[words that show it on the page],reason,t_minus_1,t_now,t_plus_1,D}], events:[{id,source,target,trigger,transmission,impact,damage,cause,on_page}], concrete_details:[specific to place/era/person, not stock imagery], avoid:[stock images/cliches].`;
+const DISCOVER_SYS=`You are the Reason-discovery step of a world simulation. An entity failed one or more independent tests (t_minus_1, t_plus_1, own_reason, on_page). Discover its real Reason: why it exists when no one is watching, what it was doing before X0, what happens to it after. It must not be defined by its use to X0. Return JSON {"name","reason","t_minus_1","t_now","t_plus_1","D","aliases":[...]} OR {"delete":true,"why":"..."} if no honest t-1 and t+1 can be written (a prop must be deleted). For personal forms use only the intake facts; if they do not support it, delete.`;
+/* ================= STEP 3: RENDER INTO F ================= */
+const RENDER_SYS=`You are the rendering stage of a writing system. Render the given simulated world into the requested Form for the stated Speaker, Addressee, Occasion and Effect.
+Rules: use only entities, events and facts present in the world (and for personal forms, only the intake). Every named entity must matter on the page (appear at least twice, or not be named). Show causes before effects. Use concrete, specific details; avoid cliches and stock imagery. Vary how characters are referred to instead of repeating their names. In lyric and rhetorical forms, a deliberate refrain, chorus or repetition is allowed. Match meter, rhyme, length and medium in F. Keep typography and grammar correct. Output ONLY the finished piece, with no title commentary, no notes, no preamble.`;
+/* ================= STEP 4: CRITIC (independent second pass) ================= */
+const CRITIC_SYS=`You are an independent critic of a draft. You did not write it. Do not rewrite it. Find concrete problems only.
+Check, form-aware: prop entities (named but pointless), effects without cause, cliches and generic phrasing, stock imagery, invented facts not in the world/intake, grammar and typographical errors, name repetition that is not a deliberate refrain, tired setups, missing gap between belief and reality (comedy), generic uplift (rhetoric), singability and hook (songs). Refrains and choruses are not repetition faults.
+Output JSON: {"issues":[{"type":"prop_entity|no_cause|cliche|generic|stock_imagery|invented_fact|grammar|typography|repetition|tired_setup|no_gap|uplift|singability|other","quote":"exact text from the draft","fix":"what to change"}]}. Empty array if none. Do not give scores.`;
+const REVISE_SYS=`You are Veto's reviser. Make the smallest possible changes that fix ONLY the listed issues. Never change the voice. Where an entity was deleted, remove it with minimal edits; where its reason, t-1 or t+1 was discovered, let it show on the page. Keep the world's facts and the form. Do not add new named entities or new facts. Return ONLY the full revised piece, nothing else.`;
+/* ================= LOCAL RULE-BASED TESTS ================= */
+const cnt=(t,s)=>s?t.split(s).length-1:0;
+function autofixTypography(t,form){
+ let x=t.replace(/[ \t]+/g," ").replace(/ +([,.;:!?])/g,"$1").replace(/([,;:!?])(?=[A-Za-z])/g,"$1 ").replace(/\bi\b(?!['’])/g,"I").replace(/\bi(['’])/g,"I$1").replace(/\n{3,}/g,"\n\n").replace(/([!?.])\1{3,}/g,"$1$1$1").trim();
+ if(form!=="lyric")x=x.replace(/(^|[.!?]["”’]?\s+)([a-z])/g,(m,a,c)=>a+c.toUpperCase());
+ if(form!=="lyric"&&!/[.!?"”’)]$/.test(x))x+=".";
+ return x}
+function localTests(t,brief,world,intake){
+ const form=brief.category,low=t.toLowerCase(),words=(t.match(/\S+/g)||[]).length||1,issues=[];
+ CLICHES.forEach(c=>{const n=cnt(low,c);if(n)issues.push({type:"cliche",quote:c,fix:"replace with a specific detail",n})});
+ if(form==="narrative"||form==="comedic"||form==="personal")
+  (world.entities||[]).filter(e=>e.named_on_page&&e.type==="human"&&e.name).forEach(e=>{const n=cnt(t,e.name),rate=n/words*100;
+   if(rate>3)issues.push({type:"repetition",quote:e.name,fix:`name used ${n}x (${rate.toFixed(1)}/100 words); vary with pronouns or epithets`})});
+ if(form==="lyric"){STOCK.forEach(x=>{if(new RegExp("\\b"+x+"s?\\b").test(low))issues.push({type:"stock_imagery",quote:x,fix:"swap for a specific concrete image"})});
+  const lines=t.split("\n").map(l=>l.trim().toLowerCase()).filter(Boolean),seen={};lines.forEach(l=>seen[l]=(seen[l]||0)+1);
+  if(brief.F?.medium==="sung"&&!Object.values(seen).some(v=>v>=2))issues.push({type:"singability",quote:"no repeating hook",fix:"add a repeating hook line"})}
+ if(form==="rhetorical")UPLIFT.forEach(u=>{if(low.includes(u))issues.push({type:"uplift",quote:u,fix:"replace with a specific claim"})});
+ if(form==="comedic")TIRED.forEach(u=>{if(low.includes(u))issues.push({type:"tired_setup",quote:u,fix:"new setup"})});
+ if(form==="personal"){const al=intake.toLowerCase();
+  const bad=(t.match(/(?<=[a-z,;] )[A-Z][\p{L}']+|\b\d[\d,.:]*\b/gu)||[]).filter(x=>!al.includes(x.toLowerCase()));
+  [...new Set(bad)].forEach(x=>issues.push({type:"invented_fact",quote:x,fix:"remove or replace with something the user gave",hard:true}))}
+ return issues}
+/* ===== AWE: independent, rule-based discovery of R^n, Integrity, Conservation, Scene weight, Decay ===== */
+const wc=s=>(String(s||"").match(/\S+/g)||[]).length,nm=s=>String(s||"").toLowerCase().replace(/[^a-z0-9 ]/g,"").trim();
+const integrityTh=d=>+(0.4+d/3).toFixed(2); // depth .9 -> 0.70 (original AI-feel line); scales with Depth
+function awe(world,brief,draft){
+ const ents=(world.entities||[]).filter(e=>e&&e.name),low=draft.toLowerCase(),issues=[];
+ const main=ents.find(e=>e.is_main),mainName=main?main.name.toLowerCase():"",refMain=s=>mainName&&String(s||"").toLowerCase().includes(mainName);
+ const named=ents.filter(e=>e.named_on_page);
+ const rows=named.map(e=>{
+  const names=[e.name,...(e.aliases||[])].filter(Boolean),hits=names.reduce((a,n)=>a+cnt(low,String(n).toLowerCase()),0),need=(e.type==="human"&&brief.category!=="lyric")?2:1;
+  const tests={
+   t_minus_1:wc(e.t_minus_1)>=3&&(e.is_main||!refMain(e.t_minus_1)),
+   t_plus_1:wc(e.t_plus_1)>=3&&nm(e.t_plus_1)!==nm(e.t_minus_1)&&nm(e.t_plus_1)!==nm(e.t_now),
+   own_reason:wc(e.reason)>=3&&(e.is_main||!refMain(e.reason)),
+   on_page:hits>=need};
+  const R=Object.values(tests).filter(Boolean).length/4;
+  const dmg=Math.min(1,(world.events||[]).filter(v=>v.target===e.name).reduce((a,v)=>a+(+v.damage||0),0));
+  return{name:e.name,type:e.type,is_main:!!e.is_main,R,tests,failed:Object.keys(tests).filter(k=>!tests[k]),damage:+dmg.toFixed(2),R_t_plus_1:+(R*(1-dmg)).toFixed(2),D:+e.D||1}});
+ const integrity=rows.length?+(rows.reduce((a,r)=>a+r.R,0)/rows.length).toFixed(2):0,th=integrityTh(brief.depth);
+ rows.forEach(r=>{
+  if(r.R===0)issues.push({type:"prop_entity",quote:r.name,fix:"Axiom 2: R=0, delete this entity",hard:true,entity:r.name});
+  else if(r.R<th)issues.push({type:"prop_entity",quote:r.name,fix:"failed tests: "+r.failed.join(", ")+". Discover its reason, t-1 and t+1 and let them show on the page, or remove it",hard:true,entity:r.name})});
+ if(rows.length&&integrity<th)issues.push({type:"low_integrity",quote:"integrity "+integrity,fix:`below threshold ${th}: too many props`,hard:true});
+ // Axiom 1: equality of reason
+ const mr=rows.find(r=>r.is_main),others=rows.filter(r=>!r.is_main);
+ if(mr&&others.length&&Math.abs(mr.R-others.reduce((a,r)=>a+r.R,0)/others.length)>.35)issues.push({type:"other",quote:"X0 vs Xn reason imbalance",fix:"Axiom 1: give the main entity and the others equal depth of reason"});
+ // Axiom 4: conservation of consequence + C vector
+ const ev=world.events||[],ids=new Set(ev.map(v=>v.id)),byName=new Set(ents.map(e=>e.name));
+ const events=ev.map((v,i)=>{
+  const filled=["trigger","transmission","impact"].filter(k=>wc(v[k])>=1).length/3;
+  const causeOK=i===0||(v.cause!=null&&ids.has(v.cause)&&v.cause<v.id);
+  const trigOK=byName.has(v.trigger)||byName.has(v.source);
+  if(!causeOK)issues.push({type:"no_cause",quote:v.impact||String(v.id),fix:"Axiom 4: where did C(t-1) come from? give this effect an earlier cause",hard:true});
+  else if(!trigOK||filled<1)issues.push({type:"no_cause",quote:v.impact||String(v.id),fix:"cause chain has no valid trigger entity",hard:true});
+  const C=causeOK&&trigOK?+filled.toFixed(2):0;
+  // Scene weight W = X0(t) x Xn(t) x R0 x Rn x C x Dn  (events where main meets one external)
+  let W=null;const isMain=n=>main&&n===main.name;
+  if(isMain(v.source)||isMain(v.target)){const o=rows.find(r=>r.name===(isMain(v.source)?v.target:v.source)),r0=mr?mr.R:0;
+   W=o?+(1*1*r0*o.R*C*(o.D/100)).toFixed(3):0;if(!W)issues.push({type:"dead_scene",quote:v.impact||String(v.id),fix:"scene weight is 0 (a factor is 0): fake scene",hard:true})}
+  return{id:v.id,C,W}});
+ const worldT=+rows.reduce((a,r)=>a+r.R*(events.filter(x=>x.C).length?1:0)*(r.D/100),0).toFixed(2);
+ return{rows,integrity,threshold:th,band:integrity<th?"AI-feeling (props)":integrity>.85?"alive":"acceptable",events,world_t:worldT,issues}}
+function score(issues,depth){
+ const W={prop_entity:.12,no_cause:.1,invented_fact:.2,cliche:.04,repetition:.05,typography:.02,grammar:.03,generic:.03,stock_imagery:.04,uplift:.06,tired_setup:.08,low_integrity:.1,dead_scene:.08,no_gap:.1,singability:.05,other:.03};
+ let p=0;issues.forEach(i=>p+=(W[i.type]||.03)*(i.n||1));
+ const th=+(.5+.4*depth).toFixed(2);
+ return{score:+clamp(1-p,0,1).toFixed(2),threshold:th}}
+const metrics=(t,issues)=>({cliche_hits:issues.filter(i=>i.type==="cliche").reduce((a,i)=>a+(i.n||1),0),repetition_flags:issues.filter(i=>i.type==="repetition").length,total_issues:issues.length,words:(t.match(/\S+/g)||[]).length});
+/* ================= PIPELINE ================= */
+const step=s=>{STAGE=s;$("st").textContent=s};
+async function run(){
+ const prompt=$("prompt").value.trim();if(!prompt)return;
+ const I={occ:$("iOcc").value.trim(),add:$("iAdd").value.trim(),spec:$("iSpec").value.split("\n").map(s=>s.trim()).filter(Boolean)};
+ const intakeStr=[I.occ,I.add,...I.spec].join(" ");
+ ["vet","brf","wld","log"].forEach(k=>$(k).textContent="");$("out").textContent="";
+ try{
+  step("1/4 brief…");
+  const brief=await apiJSON(BRIEF_SYS,`Request: ${prompt}\nIntake (from the user, may be empty): ${JSON.stringify(I)}`,CONFIG.temperature.brief);
+  if(!FORMS[brief.category])brief.category="narrative";
+  brief.depth=typeof brief.depth==="number"?clamp(brief.depth,0,1):FORMS[brief.category].depth;
+  $("brf").textContent=JSON.stringify(brief,null,1);
+  if(brief.category==="personal"&&(!I.occ||!I.add||I.spec.length<2)){
+   $("out").textContent="Personal writing needs intake first: occasion, addressee, and two or three true specifics from you (open the Intake panel). Scribe never invents your biography.";step("waiting for intake");return}
+  step("2/4 simulating world…");
+  const world=await apiJSON(WORLD_SYS,`Brief: ${JSON.stringify(brief)}\nIntake: ${JSON.stringify(I)}\nVeto focus for this form: ${FORMS[brief.category].veto}`,CONFIG.temperature.world);
+  world.entities=world.entities||[];world.events=world.events||[];
+  step("3/4 rendering…");
+  let draft=await api(RENDER_SYS,`Brief: ${JSON.stringify(brief)}\nWorld: ${JSON.stringify(world)}\nIntake: ${JSON.stringify(I)}`,CONFIG.temperature.render);
+  draft=autofixTypography(draft,brief.category);
+  const hist=[],log=[];let final=draft,first=null,last=null,passed=false,A=null;
+  for(let p=1;p<=CONFIG.maxVetoPasses;p++){
+   step(`4/4 veto pass ${p}…`);
+   A=awe(world,brief,draft);
+   let ci=[];try{const c=await apiJSON(CRITIC_SYS,`Form: ${brief.category} (veto focus: ${FORMS[brief.category].veto})\nBrief: ${JSON.stringify(brief)}\nWorld: ${JSON.stringify(world)}\nIntake: ${JSON.stringify(I)}\nDraft:\n${draft}`,CONFIG.temperature.critic);ci=(c.issues||[]).map(i=>({...i,src:"critic"}))}catch(e){log.push("critic failed: "+e.message);dbg("critic failed (non-fatal): "+e.message)}
+   const li=[...localTests(draft,brief,world,intakeStr),...A.issues].map(i=>({...i,src:"rule"}));
+   const key=i=>i.type+"|"+(i.quote||"").toLowerCase(),seen=new Set(li.map(key)),all=[...li,...ci.filter(i=>!seen.has(key(i)))];
+   const sc=score(all,brief.depth),hard=all.some(i=>i.hard),ok=!hard&&sc.score>=sc.threshold&&(!A.rows.length||A.integrity>=A.threshold);
+   const m=metrics(draft,all);if(!first)first=m;last=m;
+   hist.push({pass:p,score:sc.score,score_threshold:sc.threshold,integrity:A.integrity,integrity_threshold:A.threshold,band:A.band,hard_failures:hard,issues:all});
+   log.push(`--- DRAFT ${p} ---\n${draft}\n`);final=draft;
+   $("wld").textContent=JSON.stringify({world,awe:{integrity:A.integrity,threshold:A.threshold,band:A.band,World_t:A.world_t,entities:A.rows,events:A.events}},null,1);
+   if(ok){passed=true;break}if(p===CONFIG.maxVetoPasses)break;
+   // Veto: force Scribe to discover R for failing entities (or delete props, Axiom 2)
+   const bad=A.rows.filter(r=>r.R<A.threshold);
+   for(const r of bad){step(`veto pass ${p}: discovering reason for ${r.name}…`);
+    try{const d=await apiJSON(DISCOVER_SYS,`Entity record: ${JSON.stringify(world.entities.find(e=>e.name===r.name))}\nFailed tests: ${r.failed.join(", ")}\nWorld context: ${world.C_t_minus_1||""} -> ${world.world_t_plus_1||""}\nBrief: ${JSON.stringify(brief)}\nIntake: ${JSON.stringify(I)}`,CONFIG.temperature.world);
+     if(d.delete){world.entities=world.entities.filter(e=>e.name!==r.name);world.events=world.events.filter(v=>v.source!==r.name&&v.target!==r.name&&v.trigger!==r.name);log.push(`deleted ${r.name}: ${d.why||""}`)}
+     else{Object.assign(world.entities.find(e=>e.name===r.name),d,{name:r.name});log.push(`discovered reason for ${r.name}`)}}catch(e){log.push("discover failed: "+e.message);dbg("discover failed (non-fatal): "+e.message)}}
+   draft=autofixTypography(await api(REVISE_SYS,`Form: ${brief.category}\nWorld: ${JSON.stringify(world)}\nIntake: ${JSON.stringify(I)}\nIssues:\n${all.map(i=>`- [${i.type}] "${i.quote}" → ${i.fix}`).join("\n")}\nDraft:\n${draft}`,CONFIG.temperature.revise),brief.category)}
+  $("out").textContent=final;$("log").textContent=log.join("\n");
+  const h=hist[hist.length-1];
+  $("vet").textContent=`${passed?"PASSED":"BELOW THRESHOLD after "+hist.length+" pass(es)"}\n`+
+   `Integrity (mean of test-discovered R over named entities): ${h.integrity} vs ${h.integrity_threshold} at Depth ${brief.depth} → ${h.band} (alive > 0.85)\n`+
+   `Issue score ${h.score} vs ${h.score_threshold}\n`+
+   `Generic-ness metrics, first draft → final: cliché hits ${first.cliche_hits}→${last.cliche_hits}, repetition flags ${first.repetition_flags}→${last.repetition_flags}, total issues ${first.total_issues}→${last.total_issues}\n`+
+   `R^n is discovered by rule-based tests (t-1, t+1, own reason, on-page presence), never taken from the model, and checked on a second pass. Single-pass publication-ready output is not claimed.\n\n`+JSON.stringify(hist,null,1);
+  step(passed?"done":"done (below threshold)");
+ }catch(e){$("out").textContent="Error\n"+e.message+"\n\n(Full call-by-call log is in the Error log / debug panel below.)";dbg("FATAL: "+e.message);$("dbgd").open=true;$("st").textContent="failed at: "+STAGE}}
+$("go").onclick=run;
+/* ================= SETTINGS + API TEST ================= */
+const LS={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
+["url","key","model"].forEach(k=>{const v=LS.get("scribe_"+k);if(v)CONFIG.api[k]=v});
+$("cUrl").value=CONFIG.api.url;$("cKey").value=CONFIG.api.key;$("cModel").value=CONFIG.api.model;
+function saveCfg(){CONFIG.api.url=$("cUrl").value.trim();CONFIG.api.key=$("cKey").value.trim();CONFIG.api.model=$("cModel").value.trim().replace(/^models\//,"");
+ ["url","key","model"].forEach(k=>LS.set("scribe_"+k,CONFIG.api[k]))}
+$("cSave").onclick=()=>{saveCfg();$("cMsg").textContent="Saved."};
+$("cTest").onclick=async()=>{
+ saveCfg();const m=$("cMsg");m.textContent="Testing…";STAGE="API test";
+ if(!CONFIG.api.url||!CONFIG.api.key){m.textContent="Fill in URL and key first.";return}
+ try{
+  const base=CONFIG.api.url.replace(/\/chat\/completions\/?$/,"");
+  let r;try{r=await fetch(base+"/models",{headers:{Authorization:"Bearer "+CONFIG.api.key}})}
+  catch(e){throw new Error("Network error before any HTTP reply: "+e.message+". No internet, CORS block, content blocker, or wrong host.")}
+  const raw=await r.text();
+  if(!r.ok)throw fail(r.status,raw,"API test (list models)");
+  const ids=(JSON.parse(raw).data||[]).map(x=>String(x.id).replace(/^models\//,""));
+  const has=ids.includes(CONFIG.api.model);
+  m.textContent=`Key works (${ids.length} models visible).\nModel "${CONFIG.api.model}": ${has?"FOUND":"NOT FOUND. Valid examples: "+ids.filter(i=>/gemini.*(flash|pro)/.test(i)).slice(0,10).join(", ")}`;
+  if(has){STAGE="API test (chat)";const t=await api("Reply with the single word: ok","ping",0);m.textContent+=`\nChat call works. Model replied: ${t.slice(0,40)}`}
+  dbg("API test: "+m.textContent.replace(/\n/g," | "));
+ }catch(e){m.textContent=e.message;dbg("API test FAILED: "+e.message);$("dbgd").open=true}};
+
+</script></body></html>
