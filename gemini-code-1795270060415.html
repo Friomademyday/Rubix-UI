@@ -1,0 +1,1813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scribe — Generalized Autonomous World Equation Engine</title>
+<style>
+:root{--bg:#ffffff;--fg:#16161a;--card:#f3f4f8;--card2:#e9ebf2;--mut:#5e6270;--ac:#5b3df5;--ac2:#4226d6;--bd:#d6d9e4;--ok:#157347;--warn:#9a5b00;--bad:#b42318}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1116;--fg:#eceef4;--card:#181b24;--card2:#202431;--mut:#9aa0b4;--ac:#7b61ff;--ac2:#6447f5;--bd:#2b3040;--ok:#38d996;--warn:#ffbe4d;--bad:#ff6b6b}}
+*{box-sizing:border-box}
+body{margin:0 auto;background:var(--bg);color:var(--fg);font:15px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:20px;max-width:940px}
+h1{font-size:22px;margin:0 0 4px}
+.sub{color:var(--mut);font-size:13px;margin-bottom:16px}
+textarea,input,select{font:inherit;color:inherit;background:var(--card2);border:1px solid var(--bd);border-radius:8px;padding:9px 11px;width:100%;margin:5px 0}
+textarea{resize:vertical}
+button{font:inherit;font-weight:600;cursor:pointer;background:var(--ac);color:#fff;border:0;border-radius:8px;padding:9px 16px;transition:background .15s}
+button:hover:not(:disabled){background:var(--ac2)}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.sec{background:var(--card2);color:var(--fg);border:1px solid var(--bd)}
+button.sec:hover:not(:disabled){background:var(--bd)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:680px){.grid2{grid-template-columns:1fr}}
+.c{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin:12px 0}
+pre{white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;margin:0;line-height:1.5}
+#out{white-space:pre-wrap;font-family:Georgia,"Times New Roman",serif;font-size:16.5px;line-height:1.72}
+.m{color:var(--mut);font-size:13px}
+summary{cursor:pointer;font-weight:600;user-select:none}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;background:var(--card2);border:1px solid var(--bd)}
+.pill.ok{color:var(--ok);border-color:var(--ok)}
+.pill.warn{color:var(--warn);border-color:var(--warn)}
+.pill.bad{color:var(--bad);border-color:var(--bad)}
+</style>
+</head>
+<body>
+<h1>Scribe <span class="pill">AWE Computational Engine</span></h1>
+<div class="sub">Simulates autonomous entities ($X^0, X^n$), reason ($R^n$), causal chains $C(t) = \{\text{Trigger}, \text{Transmission}, \text{Impact}\}$, domino inertia ($D^n$), and SAOEF + Depth rendering under a form-aware Veto pass.</div>
+
+<div class="c">
+  <label for="prompt"><strong>Prompt / Creative Brief</strong></label>
+  <textarea id="prompt" rows="3" placeholder="Example: Generate a story about Mr. Sterling who lost everything in one day."></textarea>
+  <div class="row" style="margin-top:8px">
+    <button id="go">Run Scribe</button>
+    <button id="stop" class="sec" disabled>Cancel</button>
+    <span class="m" id="st">Ready.</span>
+  </div>
+</div>
+
+<details class="c">
+  <summary>Intake (Required for Personal Forms: Letters, Vows, Apologies)</summary>
+  <div class="grid2" style="margin-top:8px">
+    <div><label class="m" for="iOcc">Occasion</label><input id="iOcc" placeholder="Why this text exists right now"></div>
+    <div><label class="m" for="iAdd">Addressee</label><input id="iAdd" placeholder="Who it is addressed to"></div>
+  </div>
+  <label class="m" for="iSpec">True specifics from you (2–3 concrete facts, one per line; Scribe will never invent your biography)</label>
+  <textarea id="iSpec" rows="3" placeholder="Fact 1&#10;Fact 2&#10;Fact 3"></textarea>
+</details>
+
+<details class="c">
+  <summary>API Settings &amp; Connection Test</summary>
+  <label class="m" for="cUrl">Chat Completions Endpoint URL</label>
+  <input id="cUrl" placeholder="https://generativelanguage.googleapis.com/v1beta/openai/chat/completions">
+  <div class="grid2">
+    <div><label class="m" for="cKey">API Key (stored locally in browser only)</label><input id="cKey" type="password" placeholder="Paste API key"></div>
+    <div><label class="m" for="cModel">Model ID</label><input id="cModel" placeholder="gemini-2.5-flash"></div>
+  </div>
+  <div class="grid2">
+    <div><label class="m" for="cEff">Reasoning Effort (optional: none, minimal, low, medium, high)</label><input id="cEff" placeholder="low"></div>
+    <div><label class="m" for="cMaxPasses">Max Veto Passes</label><input id="cMaxPasses" type="number" min="1" max="5" value="2"></div>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <button id="cSave" class="sec">Save Settings</button>
+    <button id="cTest" class="sec">Test API &amp; Models</button>
+  </div>
+  <pre id="cMsg" class="m" style="margin-top:8px"></pre>
+</details>
+
+<div class="c">
+  <div class="row" style="justify-content:space-between;margin-bottom:8px">
+    <strong>Final Output</strong>
+    <button id="cp" class="sec" style="padding:5px 12px;font-size:13px">Copy Text</button>
+  </div>
+  <div id="out" class="m">Simulated output will appear here.</div>
+</div>
+
+<details class="c" open>
+  <summary>Veto, AWE Metrics &amp; Integrity Report</summary>
+  <pre id="vet" style="margin-top:8px"></pre>
+</details>
+
+<details class="c">
+  <summary>1 · Brief (S, A, O, E, F, Depth)</summary>
+  <pre id="brf" style="margin-top:8px"></pre>
+</details>
+
+<details class="c">
+  <summary>2 · Simulated World Graph, Causal Chains &amp; Beats</summary>
+  <pre id="wld" style="margin-top:8px"></pre>
+</details>
+
+<details class="c">
+  <summary>3 · Drafts, Structural Repairs &amp; Veto Log</summary>
+  <pre id="log" style="margin-top:8px"></pre>
+</details>
+
+<details class="c" id="dbgd">
+  <summary>4 · Execution &amp; API Trace Log</summary>
+  <pre id="dbg" style="margin-top:8px"></pre>
+</details>
+
+<script>
+/* ============================================================================
+ * SCRIBE COMPUTATIONAL ENGINE — GENERALIZED AUTONOMOUS WORLD EQUATION (AWE)
+ * ============================================================================
+ * Core Axioms:
+ *   1. Equality of Reason: X0 and every external entity Xn (human, env, abstract)
+ *      carry autonomous reason (why they exist when no one is watching) and
+ *      temporal trajectory t-1 -> t -> t+1.
+ *   2. No Prop Existence: Entities with no autonomous drive/trajectory or zero
+ *      causal participation are repaired structurally or pruned.
+ *   3. Environment is Alive: Settings, weather, institutions, rumors, shame,
+ *      markets, and laws are first-class entities Xn with reason and inertia D.
+ *   4. Conservation of Consequence: Every event after the root cause must link
+ *      to a prior causal source/fact and propagate through an explicit channel.
+ *
+ * Equations:
+ *   C(t) = { Trigger, Transmission, Impact }
+ *   W(X0, Xn, t) = [ X0(t) * Xn(t) ] * [ R0 * Rn ] * C(t) * Dn
+ *   World(t) = sum_n [ Xn(t) * Rn * Cn * Dn ]
+ *   Integrity = (sum_n Rn) / N   (compared against Depth-scaled threshold)
+ *   Rn(t+1) = Rn(t) * (1 - C_damage)
+ * ============================================================================ */
+
+const CONFIG = {
+  api: {
+    url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    key: "",
+    model: "gemini-2.5-flash",
+    effort: "low",
+    timeoutSec: 300
+  },
+  temperature: {
+    brief: 0.0,
+    world: 0.35,
+    render: 0.78,
+    critic: 0.0,
+    revise: 0.45
+  },
+  maxVetoPasses: 2,
+  maxEvents: 14
+};
+
+const FORMS = {
+  narrative:  { depth: 0.90, veto: "prop entities, effects without upstream cause, passive protagonist, melodramatic clichés" },
+  lyric:      { depth: 0.20, veto: "stock imagery, un-singable lines, missing repeating hook/refrain (refrains/choruses allowed)" },
+  rhetorical: { depth: 0.50, veto: "generic uplift, empty platitudes, ungrounded claims (deliberate rhetorical repetition allowed)" },
+  personal:   { depth: 0.50, veto: "invented facts about the user's life not present in intake" },
+  comedic:    { depth: 0.50, veto: "tired setups, missing gap between belief and reality, effects without causal setup" }
+};
+
+const CLICHES = [
+  "downpour", "little did", "shivers down", "shiver down", "heart pounded",
+  "heart raced", "heart skipped", "eyes sparkled", "a testament to", "tapestry",
+  "delve", "in the realm of", "sense of foreboding", "something stirred",
+  "air was thick", "ancient evil", "whispers of", "dark and stormy",
+  "once upon a time", "let out a breath", "breath she didn't know",
+  "breath he didn't know", "little did they", "against all odds",
+  "beacon of hope", "the weight of the world", "knuckles whitening",
+  "blue light reflecting", "pale, sickly", "bespoke silk", "hand trembling so violently",
+  "utterly indifferent to the silence"
+];
+
+const STOCK_IMAGERY = ["moon", "stars", "fire", "tears", "rain", "heart", "wings", "dreams"];
+const GENERIC_UPLIFT = ["believe in yourself", "the future is bright", "together we can do anything", "never give up", "sky is the limit"];
+const TIRED_SETUPS = ["a man walks into a bar", "why did the chicken", "take my wife", "i'm not saying", "walks into a bar"];
+const CHANNEL_DELAY = {
+  in_person: 1,
+  phone: 1,
+  message: 4,
+  email: 15,
+  official_notice: 20,
+  news: 30
+};
+
+const $ = id => document.getElementById(id);
+const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+const wc = s => (String(s || "").trim().match(/\S+/g) || []).length;
+const normText = s => String(s || "").toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+const countSub = (hay, needle) => {
+  if (!needle) return 0;
+  let count = 0, idx = 0;
+  while ((idx = hay.indexOf(needle, idx)) !== -1) {
+    count++;
+    idx += Math.max(1, needle.length);
+  }
+  return count;
+};
+
+let STAGE = "";
+let LAST_FINISH = "";
+let NO_EFFORT = false;
+let RUNNING = false;
+let RUN_ABORT = null;
+let OVERRIDE_EFFORT = "";
+let DAY_START_MIN = 360;
+const DBG = [];
+
+function dbg(msg) {
+  const line = `${new Date().toLocaleTimeString()}  ${msg}`;
+  DBG.push(line);
+  const el = $("dbg");
+  if (el) el.textContent = DBG.join("\n");
+}
+
+function setStatus(msg) {
+  STAGE = msg;
+  const el = $("st");
+  if (el) el.textContent = msg;
+}
+
+const HTTP_HINTS = {
+  400: "Bad request — check model ID, request payload, or API key validity.",
+  401: "Unauthorized — API key missing or invalid.",
+  403: "Forbidden — API key restricted, API not enabled, or quota/region blocked.",
+  404: "Not found — check that URL ends with /chat/completions and model ID exists.",
+  408: "Provider request timeout.",
+  413: "Payload too large for context window.",
+  429: "Rate limit or quota exceeded — wait and retry or switch model.",
+  500: "Provider internal error.",
+  502: "Bad gateway from upstream provider.",
+  503: "Model or provider temporarily overloaded.",
+  504: "Gateway timeout."
+};
+
+function makeHttpError(status, rawBody, stage) {
+  let providerMsg = String(rawBody || "").slice(0, 400);
+  try {
+    let parsed = JSON.parse(rawBody);
+    if (Array.isArray(parsed)) parsed = parsed[0];
+    providerMsg = parsed?.error?.message || parsed?.message || providerMsg;
+    if (parsed?.error?.status) providerMsg = `${parsed.error.status}: ${providerMsg}`;
+  } catch (_) {}
+  let host = "?", path = "";
+  try {
+    const u = new URL(CONFIG.api.url);
+    host = u.host;
+    path = u.pathname;
+  } catch (_) {}
+  return new Error(
+    `HTTP ${status} at stage "${stage}"\n` +
+    `Provider: ${providerMsg || "(empty body)"}\n` +
+    `Hint: ${HTTP_HINTS[status] || "Check provider response."}\n` +
+    `Endpoint: ${host}${path} | Model: ${CONFIG.api.model}`
+  );
+}
+
+async function callLLM(systemPrompt, userPrompt, temperature) {
+  const cfg = CONFIG.api;
+  const stageName = STAGE || "unknown";
+  if (!cfg.url) throw new Error(`Stage "${stageName}": API URL is blank.`);
+  if (!cfg.key) throw new Error(`Stage "${stageName}": API key is blank.`);
+  if (!cfg.model) throw new Error(`Stage "${stageName}": Model ID is blank.`);
+
+  let lastErr = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    if (RUN_ABORT?.signal.aborted) throw new Error("Run cancelled by user.");
+    const t0 = performance.now();
+    const ctl = new AbortController();
+    const onCancel = () => ctl.abort();
+    RUN_ABORT?.signal.addEventListener("abort", onCancel, { once: true });
+
+    const timeoutMs = (cfg.timeoutSec || 300) * 1000;
+    const watch = { chars: 0, timer: setTimeout(() => ctl.abort(), timeoutMs) };
+    const heartbeat = setInterval(() => {
+      if (!RUNNING) return;
+      const sec = Math.round((performance.now() - t0) / 1000);
+      setStatus(
+        watch.chars > 0
+          ? `${stageName} · ${sec}s · ${watch.chars} chars received`
+          : `${stageName} · ${sec}s · awaiting response`
+      );
+    }, 1000);
+
+    let res, rawText;
+    try {
+      const eff = OVERRIDE_EFFORT || cfg.effort;
+      const payload = {
+        model: cfg.model,
+        temperature,
+        stream: true,
+        ...(eff && !NO_EFFORT ? { reasoning_effort: eff } : {}),
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ]
+      };
+      res = await fetch(cfg.url, {
+        method: "POST",
+        signal: ctl.signal,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + cfg.key
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        rawText = await res.text();
+      } else {
+        let accText = "";
+        let finishReason = "";
+        let lineBuf = "";
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          lineBuf += decoder.decode(value, { stream: true });
+          let nlIdx;
+          while ((nlIdx = lineBuf.indexOf("\n")) >= 0) {
+            const rawLine = lineBuf.slice(0, nlIdx).trim();
+            lineBuf = lineBuf.slice(nlIdx + 1);
+            if (!rawLine.startsWith("data:")) continue;
+            const dataStr = rawLine.slice(5).trim();
+            if (dataStr === "[DONE]") continue;
+            try {
+              const chunk = JSON.parse(dataStr);
+              const choice = chunk.choices?.[0];
+              if (choice?.delta?.content) accText += choice.delta.content;
+              if (choice?.finish_reason) finishReason = choice.finish_reason;
+            } catch (_) {}
+          }
+          watch.chars = accText.length;
+          clearTimeout(watch.timer);
+          watch.timer = setTimeout(() => ctl.abort(), 90000);
+        }
+        rawText = JSON.stringify({
+          choices: [{ message: { content: accText }, finish_reason: finishReason || "stop" }]
+        });
+      }
+    } catch (err) {
+      if (RUN_ABORT?.signal.aborted) throw new Error("Run cancelled by user.");
+      const elapsed = Math.round(performance.now() - t0);
+      lastErr = new Error(
+        err.name === "AbortError"
+          ? `Timeout at "${stageName}" after ${elapsed}ms (${watch.chars} chars). Try setting reasoning effort to "minimal" or check network.`
+          : `Network error at "${stageName}" after ${elapsed}ms: ${err.message}`
+      );
+      dbg(`[${stageName}] attempt ${attempt} error: ${lastErr.message}`);
+      if (attempt < 3 && err.name !== "AbortError") {
+        await new Promise(r => setTimeout(r, 1500 * attempt));
+        continue;
+      }
+      throw lastErr;
+    } finally {
+      clearTimeout(watch.timer);
+      clearInterval(heartbeat);
+      RUN_ABORT?.signal.removeEventListener("abort", onCancel);
+    }
+
+    const elapsed = Math.round(performance.now() - t0);
+    if (!res.ok) {
+      if (res.status === 400 && cfg.effort && !NO_EFFORT && /reason|thinking|effort/i.test(rawText)) {
+        NO_EFFORT = true;
+        dbg(`[${stageName}] model rejected reasoning_effort; retrying without reasoning_effort`);
+        attempt--;
+        continue;
+      }
+      lastErr = makeHttpError(res.status, rawText, stageName);
+      dbg(`[${stageName}] attempt ${attempt} HTTP ${res.status} (${elapsed}ms): ${rawText.slice(0, 250)}`);
+      if ((res.status === 429 || res.status >= 500) && attempt < 3) {
+        await new Promise(r => setTimeout(r, 2500 * attempt));
+        continue;
+      }
+      throw lastErr;
+    }
+
+    let parsedJson;
+    try {
+      parsedJson = JSON.parse(rawText);
+    } catch (_) {
+      throw new Error(`Stage "${stageName}": non-JSON response body: ${rawText.slice(0, 200)}`);
+    }
+    const ch = parsedJson.choices?.[0];
+    LAST_FINISH = ch?.finish_reason || "";
+    const content = (ch?.message?.content ?? parsedJson.content?.[0]?.text ?? "").trim();
+    dbg(`[${stageName}] OK in ${elapsed}ms | finish=${LAST_FINISH || "?"} | ${content.length} chars`);
+    if (!content) {
+      throw new Error(`Stage "${stageName}": empty model response (finish_reason=${LAST_FINISH || "none"}).`);
+    }
+    return content;
+  }
+  throw lastErr;
+}
+
+async function callLLMJson(systemPrompt, userPrompt, temperature) {
+  let raw = "";
+  for (let attempt = 0; attempt < 2; attempt++) {
+    raw = await callLLM(
+      systemPrompt + "\nReturn ONLY one valid JSON object. No markdown fences, no commentary.",
+      userPrompt,
+      temperature
+    );
+    const cleaned = raw.replace(/```json|```/gi, "").trim();
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        return JSON.parse(match[0]);
+      } catch (e) {
+        dbg(`[${STAGE}] JSON parse failed (attempt ${attempt + 1}/2): ${e.message}`);
+      }
+    } else {
+      dbg(`[${STAGE}] no JSON object found (attempt ${attempt + 1}/2)`);
+    }
+  }
+  throw new Error(
+    `Stage "${STAGE}": invalid JSON after 2 attempts (finish_reason=${LAST_FINISH || "?"}).\n` +
+    `Preview: ${raw.slice(0, 280)}`
+  );
+}
+
+/* ============================================================================
+ * STAGE 1: SAOEF + DEPTH BRIEF EXTRACTION
+ * ============================================================================ */
+const BRIEF_SYS = `You are the intake analyzer of Scribe (Autonomous World Equation engine).
+Do NOT write the creative piece. Extract a structured brief using SAOEF + Depth:
+- category: one of "narrative", "lyric", "rhetorical", "personal", "comedic".
+  * narrative: stories, scripts, flash fiction (default depth ~0.9)
+  * lyric: poems, songs (default depth ~0.2)
+  * rhetorical: speeches, toasts, eulogies, pitches (default depth ~0.5)
+  * personal: letters, vows, apologies (default depth ~0.5, requires_intake: true)
+  * comedic: sketches, stand-up, satire (default depth ~0.5)
+- S (Speaker): who/what speaks or anchors the perspective (generalizes X0).
+- A (Addressee): target audience/recipient (person, crowd, deity, the dead, past self, nobody, reader).
+- O (Occasion): why this text exists now; its causal trigger C(t-1).
+- E (Effect): concrete change intended in the receiver/world at t+1.
+- F (Form): { "meter": "", "rhyme": "", "length": "", "medium": "read|sung|spoken" }.
+- depth: number in [0, 1] (how much of the simulated world is explicit on page vs implied).
+- mood, setting, era, topic, protagonist: { "name": "", "traits": "", "origin": "" }, requires_intake: boolean, notes: string.
+Never invent facts about the user's personal life. Use "" or null when unspecified.`;
+
+/* ============================================================================
+ * STAGE 2: COMPUTATIONAL WORLD & CAUSAL GRAPH SIMULATION
+ * ============================================================================ */
+const WORLD_SIM_SYS = `You construct an autonomous world graph for computational simulation in Scribe. Do NOT write the story.
+Obey all four AWE axioms:
+1. Equality of Reason: Every entity X0 and Xn (including environment, institutions, objects, rumors, pressures) has an autonomous reason (why it exists when no one is watching—NOT its utility to X0) and a trajectory before (t_minus_1), during (t_now), and after (t_plus_1).
+2. No Prop Existence: Do not include throwaway props with no independent existence or trajectory.
+3. Environment is Alive: Include environmental, institutional, or abstract forces (type: "human" | "env" | "institution" | "abstract") that carry reason, location, and domino weight D (1..100).
+4. Conservation of Consequence: List events causes-first. Every reaction event must cite valid earlier fact/event IDs in "because" and cannot act before receiving the informing event. X0 must NOT start knowing the hidden crisis facts, and X0 must make at least two autonomous choices (because: []).
+
+Return JSON with exact structure:
+{
+  "setting": "string",
+  "day_start": "HH:MM",
+  "C_t_minus_1": "initial causal state before t=0",
+  "world_t_plus_1": "projected state after the causal chain resolves",
+  "entities": [
+    {
+      "id": "e_ent_1",
+      "name": "string",
+      "type": "human|env|institution|abstract",
+      "is_main": false,
+      "goal": "what this entity pursues on its own",
+      "reason": "autonomous reason when unmonitored (not defined by X0)",
+      "t_minus_1": "state/activity before t=0",
+      "t_now": "state/activity at start",
+      "t_plus_1": "trajectory after chain",
+      "D": 50,
+      "loc": "location name",
+      "knows": ["f1"]
+    }
+  ],
+  "facts": [
+    { "id": "f1", "text": "concrete initial fact known only to specific entities" }
+  ],
+  "events": [
+    {
+      "id": "ev1",
+      "t": 0,
+      "wait_min": 0,
+      "who": "Entity Name",
+      "loc": "Location Name",
+      "does": "concrete observable action/dialogue (no legal/financial jargon without physical/human consequence)",
+      "trigger": "entity or force triggering this step",
+      "transmission": "how the cause travels (physical action, call, ledger, rumor, weather, etc.)",
+      "impact": "concrete state change caused",
+      "minutes": 5,
+      "because": [],
+      "informs": [
+        {
+          "to": "Other Entity Name",
+          "channel": "in_person|phone|message|email|official_notice|news",
+          "fact": "what is communicated",
+          "based_on": [],
+          "own_action": true
+        }
+      ],
+      "harms": [
+        { "who": "Entity Name", "amount": 0.25 }
+      ]
+    }
+  ]
+}
+Include 4 to 7 entities and 8 to ${CONFIG.maxEvents} events. For personal forms, use ONLY facts from intake.`;
+
+const REPAIR_GRAPH_SYS = `You repair causal and timeline violations in a Scribe simulation event list.
+Fix ONLY the listed violations by adjusting event ordering, wait_min, channels, locations, cited IDs in "because"/"based_on", or adding an informing event so actors only react to facts they have actually received.
+Keep entity IDs, names, facts, and core narrative arc intact.
+Return JSON: { "events": [ ...repaired event objects... ] }`;
+
+const STRUCTURAL_ENTITY_REPAIR_SYS = `You repair an entity in Scribe's Autonomous World Equation simulation that failed autonomy or causal tests.
+Provide either:
+{ "repair": { "reason": "...", "t_minus_1": "...", "t_now": "...", "t_plus_1": "...", "goal": "...", "D": 40 } }
+OR, if the entity is a pure prop with no honest autonomous reason or trajectory:
+{ "delete": true, "why": "concise reason" }
+Never define an entity's reason solely by its service to X0.`;
+
+function parseHHMM(str) {
+  const parts = String(str || "08:00").split(":");
+  const h = Number.isFinite(+parts[0]) ? +parts[0] : 8;
+  const m = Number.isFinite(+parts[1]) ? +parts[1] : 0;
+  return (((h * 60 + m) % 1440) + 1440) % 1440;
+}
+
+function fmtClock(minutesFromStart) {
+  const total = (((DAY_START_MIN + Math.round(minutesFromStart)) % 1440) + 1440) % 1440;
+  const hh = String(Math.floor(total / 60)).padStart(2, "0");
+  const mm = String(total % 60).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+function enforceMainFromPrompt(setup, prompt) {
+  const ents = setup.entities || [];
+  if (!ents.length) return;
+  const qWords = prompt.toLowerCase().match(/[a-z]{3,}/g) || [];
+  const honorifics = new Set(["mr", "mrs", "ms", "dr", "prof", "sir", "madam", "the"]);
+  let bestEnt = ents.find(e => e.is_main) || ents[0];
+  let bestScore = -1;
+
+  for (const e of ents) {
+    const tokens = (String(e.name || "").toLowerCase().match(/[a-z]{2,}/g) || [])
+      .filter(w => !honorifics.has(w));
+    let score = 0;
+    for (const tok of tokens) {
+      if (qWords.includes(tok)) score += 3;
+      else if (prompt.toLowerCase().includes(tok)) score += 2;
+    }
+    if (e.is_main) score += 0.5;
+    if (score > bestScore) {
+      bestScore = score;
+      bestEnt = e;
+    }
+  }
+  ents.forEach(e => { e.is_main = (e === bestEnt); });
+}
+
+function simulateCausalWorld(setup) {
+  DAY_START_MIN = parseHHMM(setup.day_start);
+  const rawEnts = Array.isArray(setup.entities) ? setup.entities : [];
+  if (!rawEnts.length) {
+    throw new Error("World simulation returned zero entities.");
+  }
+
+  const entsByName = {};
+  const initialFactIds = new Set((setup.facts || []).map(f => String(f.id)));
+  const knownAt = {}; // `${entityName}|${factOrEventId}` -> arrival minute
+  const violations = [];
+  const log = [];
+  const rawIdToSimId = {};
+
+  for (const rawE of rawEnts) {
+    if (!rawE || !rawE.name) continue;
+    const name = String(rawE.name).trim();
+    const startLoc = String(rawE.loc || setup.setting || "Main Scene").trim();
+    const initKnows = new Set((rawE.knows || []).map(String));
+    const dVal = clamp(Number(rawE.D) || 35, 1, 100);
+    entsByName[name] = {
+      id: String(rawE.id || name),
+      name,
+      type: rawE.type || "human",
+      is_main: Boolean(rawE.is_main),
+      goal: String(rawE.goal || "persist and pursue own objective").trim(),
+      reason: String(rawE.reason || "autonomous existence").trim(),
+      t_minus_1: String(rawE.t_minus_1 || "prior state before observation").trim(),
+      t_now: String(rawE.t_now || startLoc).trim(),
+      t_plus_1: String(rawE.t_plus_1 || "subsequent trajectory").trim(),
+      D: dVal,
+      loc: startLoc,
+      loc0: startLoc,
+      knows: initKnows,
+      initialKnowsCount: initKnows.size,
+      actedCount: 0,
+      ownChoiceCount: 0,
+      freeAt: 0,
+      damage: 0,
+      stateHistory: [`t-1: ${rawE.t_minus_1 || "prior"}`, `t0@${startLoc}`]
+    };
+    for (const kId of initKnows) {
+      knownAt[`${name}|${kId}`] = -1;
+    }
+  }
+
+  const evList = Array.isArray(setup.events) ? setup.events.slice(0, CONFIG.maxEvents) : [];
+
+  evList.forEach((evRaw, idx) => {
+    const evKey = String(evRaw.id || `ev${idx + 1}`);
+    const actor = entsByName[evRaw.who];
+    const dur = Math.max(1, Math.round(Number(evRaw.minutes) || 2));
+    const descPreview = String(evRaw.does || "").slice(0, 55);
+
+    if (!actor) {
+      violations.push(`Event ${evKey} ("${descPreview}"): unknown actor "${evRaw.who}".`);
+      return;
+    }
+
+    const prereqs = Array.isArray(evRaw.because) ? evRaw.because.map(String) : [];
+    let startT = Number.isFinite(Number(evRaw.t)) ? Math.round(Number(evRaw.t)) : actor.freeAt;
+
+    for (const reqId of prereqs) {
+      const learnedAt = knownAt[`${actor.name}|${reqId}`];
+      if (learnedAt === undefined) {
+        violations.push(
+          `Event ${evKey} (${actor.name}): cites "${reqId}" in "because", which ${actor.name} has not received yet. Move the informing event earlier or fix "because".`
+        );
+        return;
+      }
+      startT = Math.max(startT, learnedAt);
+    }
+
+    if (prereqs.length > 0) {
+      startT += Math.max(0, Math.round(Number(evRaw.wait_min) || 0));
+    }
+    startT = Math.max(startT, actor.freeAt);
+
+    const loc = String(evRaw.loc || actor.loc).trim();
+    const informsRaw = Array.isArray(evRaw.informs) ? evRaw.informs : [];
+    const validInforms = [];
+
+    for (const inf of informsRaw) {
+      const recip = entsByName[inf.to];
+      const ch = String(inf.channel || "in_person");
+      if (!recip || recip === actor) {
+        violations.push(`Event ${evKey} (${actor.name} at ${fmtClock(startT)}): invalid recipient "${inf.to}".`);
+        return;
+      }
+      if (!Object.prototype.hasOwnProperty.call(CHANNEL_DELAY, ch)) {
+        violations.push(`Event ${evKey} (${actor.name} at ${fmtClock(startT)}): unknown channel "${ch}".`);
+        return;
+      }
+      if (ch === "in_person" && recip.loc !== loc) {
+        violations.push(
+          `Event ${evKey} (${actor.name} at ${fmtClock(startT)}): channel is "in_person" at "${loc}", but ${recip.name} is at "${recip.loc}".`
+        );
+        return;
+      }
+      const basedOn = Array.isArray(inf.based_on) ? inf.based_on.map(String) : [];
+      if (!inf.own_action) {
+        if (!basedOn.length) {
+          violations.push(
+            `Event ${evKey} (${actor.name} -> ${recip.name}): "informs" requires "own_action: true" or non-empty "based_on".`
+          );
+          return;
+        }
+        for (const bId of basedOn) {
+          const bTime = knownAt[`${actor.name}|${bId}`];
+          if (bTime === undefined || bTime > startT) {
+            violations.push(
+              `Event ${evKey} (${actor.name}): attempts to relay "${bId}" before receiving it at ${fmtClock(startT)}.`
+            );
+            return;
+          }
+        }
+      }
+      validInforms.push({
+        to: recip.name,
+        channel: ch,
+        fact: String(inf.fact || evRaw.does || "").trim(),
+        basedOn,
+        ownAction: Boolean(inf.own_action)
+      });
+    }
+
+    const simId = log.length + 1;
+    const causeParentIds = new Set();
+    for (const reqId of prereqs) {
+      if (rawIdToSimId[reqId]) causeParentIds.add(rawIdToSimId[reqId]);
+    }
+
+    const endT = startT + dur;
+    const executedInforms = [];
+    for (const inf of validInforms) {
+      for (const bId of inf.basedOn) {
+        if (rawIdToSimId[bId]) causeParentIds.add(rawIdToSimId[bId]);
+      }
+      const arrivalT = endT + CHANNEL_DELAY[inf.channel];
+      const kKey = `${inf.to}|${evKey}`;
+      knownAt[kKey] = Math.min(knownAt[kKey] ?? Infinity, arrivalT);
+      entsByName[inf.to].knows.add(evKey);
+      entsByName[inf.to].stateHistory.push(`@${fmtClock(arrivalT)} learned from ${actor.name}: ${inf.fact}`);
+      executedInforms.push({
+        to: inf.to,
+        channel: inf.channel,
+        at: arrivalT,
+        fact: inf.fact
+      });
+    }
+
+    const harms = (Array.isArray(evRaw.harms) ? evRaw.harms : [])
+      .filter(h => h && entsByName[h.who])
+      .map(h => ({ who: h.who, amount: clamp(Number(h.amount) || 0, 0, 1) }));
+
+    const isAutonomousChoice = prereqs.length === 0;
+    const beforeLoc = actor.loc;
+    actor.loc = loc;
+    actor.freeAt = endT;
+    actor.actedCount += 1;
+    if (isAutonomousChoice) actor.ownChoiceCount += 1;
+    actor.stateHistory.push(
+      `@${fmtClock(startT)}-${fmtClock(endT)} [${beforeLoc}->${loc}] ${evRaw.does}`
+    );
+
+    for (const h of harms) {
+      entsByName[h.who].damage = clamp(entsByName[h.who].damage + h.amount, 0, 1);
+    }
+
+    rawIdToSimId[evKey] = simId;
+    log.push({
+      id: simId,
+      rawId: evKey,
+      t: startT,
+      end: endT,
+      who: actor.name,
+      loc,
+      beforeLoc,
+      does: String(evRaw.does || "").trim(),
+      trigger: String(evRaw.trigger || actor.name).trim(),
+      transmission: String(evRaw.transmission || (executedInforms[0]?.channel || "direct action")).trim(),
+      impact: String(evRaw.impact || evRaw.does || "").trim(),
+      ownChoice: isAutonomousChoice,
+      causedBy: [...causeParentIds],
+      informs: executedInforms,
+      harms,
+      dominoCount: 0
+    });
+  });
+
+  log.sort((a, b) => a.t - b.t || a.id - b.id);
+
+  // Compute domino reach (downstream causal descendants) for each event
+  const childrenMap = new Map();
+  for (const ev of log) childrenMap.set(ev.id, []);
+  for (const ev of log) {
+    for (const parentId of ev.causedBy) {
+      if (childrenMap.has(parentId)) childrenMap.get(parentId).push(ev.id);
+    }
+  }
+  for (const ev of log) {
+    const visited = new Set();
+    const stack = [...(childrenMap.get(ev.id) || [])];
+    while (stack.length) {
+      const cid = stack.pop();
+      if (!visited.has(cid)) {
+        visited.add(cid);
+        for (const grand of childrenMap.get(cid) || []) {
+          if (!visited.has(grand)) stack.push(grand);
+        }
+      }
+    }
+    ev.dominoCount = visited.size;
+  }
+
+  return {
+    setting: String(setup.setting || "").trim(),
+    C_t_minus_1: String(setup.C_t_minus_1 || "").trim(),
+    world_t_plus_1: String(setup.world_t_plus_1 || "").trim(),
+    initialFactIds: [...initialFactIds],
+    ents: entsByName,
+    log,
+    violations
+  };
+}
+
+async function buildValidatedSimulation(setup, prompt) {
+  enforceMainFromPrompt(setup, prompt);
+  let currentSetup = setup;
+  let sim = null;
+
+  for (let round = 0; round <= 2; round++) {
+    const evCount = (currentSetup.events || []).length;
+    setStatus(`Validating causal graph & knowledge timeline (${evCount} events, pass ${round + 1})…`);
+    sim = simulateCausalWorld(currentSetup);
+    dbg(`Causal check #${round + 1}: ${sim.violations.length} violation(s), ${sim.log.length} valid event(s)`);
+    sim.violations.forEach(v => dbg("  violation: " + v));
+
+    if (!sim.violations.length || round === 2) break;
+
+    setStatus(`Repairing ${sim.violations.length} causal/timeline violation(s) (round ${round + 1}/2)…`);
+    const prevEffort = OVERRIDE_EFFORT;
+    OVERRIDE_EFFORT = "minimal";
+    try {
+      const repaired = await callLLMJson(
+        REPAIR_GRAPH_SYS,
+        `Entities: ${JSON.stringify(currentSetup.entities)}\nFacts: ${JSON.stringify(currentSetup.facts || [])}\nEvents: ${JSON.stringify(currentSetup.events || [])}\nViolations:\n${sim.violations.join("\n")}`,
+        CONFIG.temperature.brief
+      );
+      if (Array.isArray(repaired.events) && repaired.events.length) {
+        currentSetup = { ...currentSetup, events: repaired.events };
+      } else {
+        break;
+      }
+    } catch (e) {
+      dbg("Graph repair warning: " + e.message);
+      break;
+    } finally {
+      OVERRIDE_EFFORT = prevEffort;
+    }
+  }
+
+  if (!sim || !sim.log.length) {
+    throw new Error(
+      `Causal simulation failed to produce valid events. Violations: ${(sim?.violations || []).slice(0, 4).join(" | ")}`
+    );
+  }
+
+  const entities = Object.values(sim.ents).map(e => {
+    const words = e.name.split(/\s+/).filter(w => w.length > 3 && !/^(mr|mrs|ms|dr)\.?$/i.test(w));
+    return {
+      id: e.id,
+      name: e.name,
+      type: e.type,
+      is_main: e.is_main,
+      goal: e.goal,
+      reason: e.reason,
+      t_minus_1: e.t_minus_1,
+      t_now: e.t_now,
+      t_plus_1: `ends at ${e.loc}; knows ${e.knows.size} facts; acted ${e.actedCount}x (${e.t_plus_1})`,
+      D: e.D,
+      loc: e.loc,
+      damage: e.damage,
+      named_on_page: false,
+      aliases: words
+    };
+  });
+
+  return {
+    setting: sim.setting,
+    C_t_minus_1: sim.C_t_minus_1,
+    world_t_plus_1: sim.world_t_plus_1,
+    violations_remaining: sim.violations,
+    sim,
+    entities,
+    events: sim.log
+  };
+}
+
+function compileBeats(world, brief) {
+  const { log, ents } = world.sim;
+  const x0 = Object.values(ents).find(e => e.is_main) || Object.values(ents)[0];
+  const x0LocationAt = t => {
+    let curLoc = x0.loc0;
+    for (const ev of log) {
+      if (ev.who === x0.name && ev.t <= t) curLoc = ev.loc;
+    }
+    return curLoc;
+  };
+
+  const visibleBeats = [];
+  const offstageCandidates = [];
+
+  for (const ev of log) {
+    if (ev.suppressed) continue;
+    const x0Loc = x0LocationAt(ev.t);
+    const perceivedDirectly = (ev.who === x0.name) || (ev.loc === x0Loc);
+    const delta = ev.beforeLoc !== ev.loc
+      ? `state: ${ev.beforeLoc} -> ${ev.loc} | impact: ${ev.impact}`
+      : `impact: ${ev.impact}`;
+
+    if (perceivedDirectly) {
+      visibleBeats.push({
+        t: ev.t,
+        line: `[${fmtClock(ev.t)}] (${ev.who} @ ${ev.loc}) ${ev.does} — ${delta}`
+      });
+    } else {
+      offstageCandidates.push({ ev, delta });
+    }
+
+    for (const inf of ev.informs) {
+      if (inf.to === x0.name) {
+        visibleBeats.push({
+          t: inf.at,
+          line: `[${fmtClock(inf.at)}] (X0 receives via ${inf.channel} from ${ev.who}) ${inf.fact}`
+        });
+      }
+    }
+  }
+
+  const maxOffstage = Math.max(1, Math.round((Number(brief.depth) || 0.5) * 3));
+  offstageCandidates
+    .sort((a, b) => b.ev.dominoCount - a.ev.dominoCount)
+    .slice(0, maxOffstage)
+    .forEach(({ ev, delta }) => {
+      visibleBeats.push({
+        t: ev.t,
+        line: `[${fmtClock(ev.t)}] OFFSTAGE (${ev.who} @ ${ev.loc}) ${ev.does} — ${delta}`
+      });
+    });
+
+  visibleBeats.sort((a, b) => a.t - b.t);
+  const beatText = visibleBeats.map(b => b.line).join("\n");
+
+  for (const ent of world.entities) {
+    const names = [ent.name, ...(ent.aliases || [])].filter(Boolean);
+    ent.named_on_page = names.some(n => beatText.toLowerCase().includes(String(n).toLowerCase()));
+  }
+
+  return beatText;
+}
+
+/* ============================================================================
+ * AWE METRICS & EQUATIONS
+ * ============================================================================ */
+function integrityThreshold(depth) {
+  return +(0.4 + clamp(Number(depth) || 0.5, 0, 1) / 3).toFixed(2);
+}
+
+function computeAWE(world, brief, draftText) {
+  const th = integrityThreshold(brief.depth);
+  const lowDraft = String(draftText || "").toLowerCase();
+  const issues = [];
+
+  if (world.sim) {
+    const { log, ents } = world.sim;
+    const x0 = Object.values(ents).find(e => e.is_main) || Object.values(ents)[0];
+    const transmittedEventIds = new Set();
+    for (const ev of log) {
+      for (const pId of ev.causedBy) transmittedEventIds.add(pId);
+    }
+
+    const activeEntities = world.entities.filter(e => e.named_on_page);
+    const rows = activeEntities.map(ent => {
+      const simEnt = ents[ent.name] || {
+        ownChoiceCount: 0,
+        actedCount: 0,
+        knows: new Set(),
+        initialKnowsCount: 0,
+        loc: ent.loc,
+        loc0: ent.loc,
+        damage: 0,
+        D: ent.D || 25
+      };
+      const actorEvents = log.filter(v => v.who === ent.name);
+      const receivesInfo = log.some(v => v.informs.some(i => i.to === ent.name));
+      const mentions = [ent.name, ...(ent.aliases || [])]
+        .filter(Boolean)
+        .reduce((acc, alias) => acc + countSub(lowDraft, String(alias).toLowerCase()), 0);
+      const minMentions = ent.type === "human" && brief.category !== "lyric" ? 2 : 1;
+
+      const tests = {
+        acts_on_own_goal: simEnt.ownChoiceCount > 0,
+        consequence_travels: actorEvents.some(v => v.dominoCount > 0),
+        state_changes: (simEnt.knows.size > simEnt.initialKnowsCount) || (simEnt.loc !== simEnt.loc0),
+        on_page: mentions >= minMentions
+      };
+
+      const R = +(Object.values(tests).filter(Boolean).length / 4).toFixed(3);
+      const maxDomino = Math.max(0, ...actorEvents.map(v => v.dominoCount || 0));
+      const D = +((simEnt.D || 20) * (1 + maxDomino * 0.15)).toFixed(2);
+      const X_presence = (actorEvents.length > 0 || receivesInfo) ? 1 : 0;
+
+      const triggerVal = X_presence;
+      const transmissionVal = actorEvents.some(v => transmittedEventIds.has(v.id) || v.informs.length > 0) ? 1 : 0;
+      const impactVal = actorEvents.some(v => v.impact && v.impact.trim().length > 0) ? 1 : 0;
+      const Cn = +((triggerVal + transmissionVal + impactVal) / 3).toFixed(3);
+
+      const meetsX0 = (ent.name === x0.name) || log.some(v =>
+        (v.who === ent.name && v.informs.some(i => i.to === x0.name)) ||
+        (v.who === x0.name && v.informs.some(i => i.to === ent.name)) ||
+        (v.who === ent.name && log.some(b => b.who === x0.name && b.loc === v.loc && Math.abs(b.t - v.t) <= 30))
+      );
+
+      const damage = clamp(Number(simEnt.damage) || 0, 0, 1);
+      const R_next = +(R * (1 - damage)).toFixed(3);
+
+      return {
+        name: ent.name,
+        type: ent.type,
+        is_main: ent.is_main,
+        R,
+        tests,
+        failed: Object.keys(tests).filter(k => !tests[k]),
+        X: X_presence,
+        C_vec: { trigger: triggerVal, transmission: transmissionVal, impact: impactVal },
+        Cn,
+        D,
+        meets_X0: meetsX0 ? 1 : 0,
+        damage,
+        R_next,
+        W: null
+      };
+    });
+
+    const R0 = (rows.find(r => r.name === x0.name) || { R: 1 }).R;
+    for (const r of rows) {
+      if (r.name !== x0.name) {
+        r.W = +(1 * r.X * r.meets_X0 * (R0 * r.R) * r.Cn * r.D).toFixed(3);
+      }
+    }
+
+    const integrity = rows.length
+      ? +(rows.reduce((acc, r) => acc + r.R, 0) / rows.length).toFixed(2)
+      : 0;
+    const worldT = +rows.reduce((acc, r) => acc + (r.X * r.R * r.Cn * r.D), 0).toFixed(2);
+
+    for (const r of rows) {
+      if (r.R === 0) {
+        issues.push({
+          type: "prop_entity",
+          quote: r.name,
+          fix: `Axiom 2: ${r.name} has R=0; remove or give autonomous causal agency`,
+          hard: true,
+          entity: r.name
+        });
+      } else if (r.R < th) {
+        issues.push({
+          type: "prop_entity",
+          quote: r.name,
+          fix: `R=${r.R} below threshold ${th} (failed: ${r.failed.join(", ")})`,
+          hard: true,
+          entity: r.name
+        });
+      }
+    }
+
+    if (rows.length && integrity < th) {
+      issues.push({
+        type: "low_integrity",
+        quote: `integrity ${integrity}`,
+        fix: `Integrity ${integrity} < threshold ${th} at depth ${brief.depth}`,
+        hard: true
+      });
+    }
+
+    if (x0 && x0.ownChoiceCount < 2) {
+      issues.push({
+        type: "other",
+        quote: "passive protagonist",
+        fix: `Main entity ${x0.name} made ${x0.ownChoiceCount} autonomous choice(s); needs at least 2`,
+        hard: false
+      });
+    }
+
+    const formulas = {
+      "W(X0,Xn,t) = [X0(t)*Xn(t)] * [R0*Rn] * C(t) * Dn": Object.fromEntries(
+        rows.filter(r => r.W !== null).map(r => [r.name, r.W])
+      ),
+      "World(t) = sum(Xn(t) * Rn * Cn * Dn)": worldT,
+      "Integrity = sum(Rn) / N": integrity,
+      "Rn(t+1) = Rn(t) * (1 - C_damage)": Object.fromEntries(rows.map(r => [r.name, r.R_next]))
+    };
+
+    return {
+      rows,
+      integrity,
+      threshold: th,
+      band: integrity < th ? "below threshold (prop-heavy)" : integrity > 0.85 ? "alive" : "within threshold",
+      events: log.map(v => ({ id: v.id, who: v.who, domino: v.dominoCount, causedBy: v.causedBy })),
+      world_t: worldT,
+      formulas,
+      issues
+    };
+  }
+
+  // Non-simulation generalized AWE for lyric, rhetorical, personal forms
+  const ents = Array.isArray(world.entities) ? world.entities : [];
+  const rows = ents.map(ent => {
+    const hasReason = wc(ent.reason) >= 3;
+    const hasPrev = wc(ent.t_minus_1) >= 2;
+    const hasNext = wc(ent.t_plus_1) >= 2;
+    const R = +(([hasReason, hasPrev, hasNext].filter(Boolean).length) / 3).toFixed(3);
+    const D = clamp(Number(ent.D) || 20, 1, 100);
+    return {
+      name: ent.name || "entity",
+      type: ent.type || "abstract",
+      is_main: Boolean(ent.is_main),
+      R,
+      tests: { hasReason, hasPrev, hasNext },
+      failed: [
+        !hasReason && "reason",
+        !hasPrev && "t_minus_1",
+        !hasNext && "t_plus_1"
+      ].filter(Boolean),
+      D,
+      damage: 0,
+      R_next: R,
+      W: null
+    };
+  });
+
+  const integrity = rows.length
+    ? +(rows.reduce((acc, r) => acc + r.R, 0) / rows.length).toFixed(2)
+    : 1;
+  const worldT = +rows.reduce((acc, r) => acc + (r.R * r.D), 0).toFixed(2);
+
+  if (rows.length && integrity < th) {
+    issues.push({
+      type: "low_integrity",
+      quote: `integrity ${integrity}`,
+      fix: `Raise entity autonomy/grounding to meet threshold ${th}`,
+      hard: false
+    });
+  }
+
+  return {
+    rows,
+    integrity,
+    threshold: th,
+    band: integrity < th ? "below threshold" : integrity > 0.85 ? "alive" : "within threshold",
+    events: [],
+    world_t: worldT,
+    formulas: {
+      "World_saof = sum(Rn * Dn)": worldT,
+      "Integrity = sum(Rn) / N": integrity
+    },
+    issues
+  };
+}
+
+/* ============================================================================
+ * RENDERING, RULE CHECKS, CRITIC & VETO REVISION
+ * ============================================================================ */
+const RENDER_SIM_SYS = `You are the rendering stage of Scribe (Autonomous World Equation engine).
+You receive BEATS from a simulated world in chronological order, filtered to what X0 (the main entity) perceives, plus marked OFFSTAGE causal cuts and remaining drive Rn(t+1) after impact.
+
+Strict craft rules:
+1. Dramatize 3 to 5 key beats as concrete scenes with physical action, dialogue, and specific details; compress secondary beats into tight clauses.
+2. Respect perspective boundaries: X0 only knows what X0 has witnessed or received up to that moment, except in explicitly marked OFFSTAGE cuts.
+3. Show causes before effects without lazy causal filler ("because", "in response to", "as a result"). Let sequence and action prove causation.
+4. Give X0 at least two visible choices/actions and a moment of misjudgment or denial before reality lands.
+5. Never use melodramatic or generic clichés (no "knuckles whitening", "blue light reflecting in pupils", "pale sickly green", "bespoke silk", "hand trembling so violently", "utterly indifferent to the silence").
+6. End on a concrete action, object, or image—never a moral summary or weather cliché.
+7. Write in full for what happens (target ~650 to 950 words for narrative, ~350 to 650 words for comedic). Output ONLY the finished piece.`;
+
+const RENDER_GENERAL_SYS = `You are the rendering stage of Scribe.
+Render the requested piece using S (Speaker), A (Addressee), O (Occasion), E (Effect), F (Form), and the simulated world/intake.
+- For personal forms: use ONLY facts explicitly provided in intake; never invent biography, dates, places, or facts.
+- For lyric/rhetorical forms: allow intentional refrains, choruses, or rhetorical repetition where appropriate, but avoid stock imagery or empty platitudes.
+- Output ONLY the finished piece with no preamble or notes.`;
+
+const CRITIC_SYS = `You are the independent Veto critic for Scribe. Do NOT rewrite the piece.
+Inspect the draft against the Brief (S, A, O, E, F), World, Intake, and Veto focus.
+Flag concrete problems only:
+- prop_entity: named entity/element that adds nothing and has no causal/thematic weight
+- no_cause: effect or turn that appears without causal grounding
+- cliche: overused phrase or stock cliché
+- generic: vague/hollow phrasing
+- stock_imagery: cliché poetic nouns/images in lyrics
+- invented_fact: any personal/biographical fact not present in intake (for personal forms)
+- grammar / typography: syntax or punctuation/spacing errors
+- repetition: unintentional repetitive naming/phrasing (do NOT flag deliberate song refrains/choruses or rhetorical repetition)
+- tired_setup / no_gap: weak comedic setup or missing belief-vs-reality gap
+- uplift: generic motivational clichés in speeches
+- singability: song/lyric lacks singable cadence or hook
+- other: piece fails to achieve intended Effect E on Addressee A
+
+Return JSON:
+{
+  "issues": [
+    { "type": "cliche", "quote": "exact substring from draft", "fix": "specific replacement or fix" }
+  ]
+}`;
+
+const REVISE_SYS = `You are Scribe's Veto reviser.
+Apply targeted edits to fix ONLY the listed issues while preserving voice, structure, and length.
+Do NOT summarize or shorten the piece. Do NOT invent new personal facts.
+Return ONLY the full revised piece.`;
+
+function cleanTypography(text, category) {
+  let out = String(text || "")
+    .replace(/\r\n/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/ +([,.;:!?])/g, "$1")
+    .replace(/([,;:!?])(?=[A-Za-z])/g, "$1 ")
+    .replace(/\bi\b(?!['’])/g, "I")
+    .replace(/\bi(['’])/g, "I$1")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/([!?.])\1{3,}/g, "$1$1$1")
+    .trim();
+
+  if (category !== "lyric") {
+    out = out.replace(/(^|[.!?]["”’]?\s+)([a-z])/g, (_, prefix, ch) => prefix + ch.toUpperCase());
+    if (out && !/[.!?]["”’)\]]?$/.test(out)) {
+      out += ".";
+    }
+  }
+  return out;
+}
+
+function runLocalRuleChecks(draftText, brief, world, intakeCombined) {
+  const issues = [];
+  const lower = draftText.toLowerCase();
+  const totalWords = Math.max(1, wc(draftText));
+  const category = brief.category;
+
+  for (const phrase of CLICHES) {
+    const n = countSub(lower, phrase);
+    if (n > 0) {
+      issues.push({
+        type: "cliche",
+        quote: phrase,
+        fix: `replace cliché "${phrase}" with concrete, specific observation`,
+        n
+      });
+    }
+  }
+
+  if (category === "narrative" || category === "comedic" || category === "personal") {
+    for (const ent of (world.entities || [])) {
+      if (ent.named_on_page && ent.type === "human" && ent.name) {
+        const n = countSub(draftText, ent.name);
+        const per100 = (n / totalWords) * 100;
+        if (per100 > 3.2) {
+          issues.push({
+            type: "repetition",
+            quote: ent.name,
+            fix: `"${ent.name}" appears ${n} times (${per100.toFixed(1)}/100w); vary with pronouns or role descriptors`,
+            n: 1
+          });
+        }
+      }
+    }
+  }
+
+  if (category === "lyric") {
+    for (const word of STOCK_IMAGERY) {
+      const re = new RegExp(`\\b${word}s?\\b`, "i");
+      if (re.test(lower)) {
+        issues.push({
+          type: "stock_imagery",
+          quote: word,
+          fix: `replace stock lyric image "${word}" with a grounded sensory image`,
+          n: 1
+        });
+      }
+    }
+    if (brief.F?.medium === "sung") {
+      const lines = draftText.split("\n").map(l => normText(l)).filter(Boolean);
+      const freq = {};
+      for (const l of lines) freq[l] = (freq[l] || 0) + 1;
+      if (!Object.values(freq).some(c => c >= 2)) {
+        issues.push({
+          type: "singability",
+          quote: "missing repeating hook",
+          fix: "include a repeating chorus or hook line for vocal recall",
+          n: 1
+        });
+      }
+    }
+  }
+
+  if (category === "rhetorical") {
+    for (const phrase of GENERIC_UPLIFT) {
+      if (lower.includes(phrase)) {
+        issues.push({
+          type: "uplift",
+          quote: phrase,
+          fix: `replace generic uplift "${phrase}" with a concrete claim or stake`,
+          n: 1
+        });
+      }
+    }
+  }
+
+  if (category === "comedic") {
+    for (const setupPhrase of TIRED_SETUPS) {
+      if (lower.includes(setupPhrase)) {
+        issues.push({
+          type: "tired_setup",
+          quote: setupPhrase,
+          fix: `replace tired setup "${setupPhrase}" with an original premise`,
+          n: 1
+        });
+      }
+    }
+  }
+
+  if (category === "personal") {
+    const intakeLower = intakeCombined.toLowerCase();
+    const candidates = draftText.match(/(?<=[a-z,;] )[A-Z][\p{L}']+|\b\d[\d,.:/-]*\b/gu) || [];
+    const invented = [...new Set(candidates)].filter(tok => !intakeLower.includes(tok.toLowerCase()));
+    for (const inv of invented) {
+      issues.push({
+        type: "invented_fact",
+        quote: inv,
+        fix: `remove or ground "${inv}" strictly in user intake`,
+        hard: true,
+        n: 1
+      });
+    }
+  }
+
+  return issues;
+}
+
+function computeQualityScore(issues, depth) {
+  const weights = {
+    prop_entity: 0.12,
+    no_cause: 0.10,
+    invented_fact: 0.20,
+    cliche: 0.04,
+    repetition: 0.05,
+    typography: 0.02,
+    grammar: 0.03,
+    generic: 0.03,
+    stock_imagery: 0.04,
+    uplift: 0.06,
+    tired_setup: 0.08,
+    low_integrity: 0.10,
+    no_gap: 0.10,
+    singability: 0.05,
+    other: 0.03
+  };
+  let penalty = 0;
+  for (const item of issues) {
+    penalty += (weights[item.type] ?? 0.03) * (item.n || 1);
+  }
+  const threshold = +(0.5 + 0.4 * clamp(Number(depth) || 0.5, 0, 1)).toFixed(2);
+  return {
+    score: +clamp(1 - penalty, 0, 1).toFixed(2),
+    threshold
+  };
+}
+
+function summarizeDraftMetrics(text, issues) {
+  return {
+    words: wc(text),
+    cliche_hits: issues.filter(i => i.type === "cliche").reduce((a, b) => a + (b.n || 1), 0),
+    repetition_flags: issues.filter(i => i.type === "repetition").length,
+    total_issues: issues.length
+  };
+}
+
+async function repairFailingEntitiesInWorld(world, aweResult, brief, intakeObj, logLines) {
+  const failingRows = aweResult.rows.filter(r => r.R < aweResult.threshold);
+  for (const row of failingRows) {
+    if (world.sim) {
+      const simEnt = world.sim.ents[row.name];
+      const worldEnt = world.entities.find(e => e.name === row.name);
+      if (simEnt && simEnt.actedCount === 0 && !simEnt.is_main) {
+        if (worldEnt) worldEnt.named_on_page = false;
+        for (const ev of world.sim.log) {
+          if (ev.who === row.name) ev.suppressed = true;
+        }
+        logLines.push(`[Veto Structural] Suppressed non-acting entity "${row.name}" from active beats.`);
+      } else {
+        setStatus(`Veto pass: repairing autonomy fields for "${row.name}"…`);
+        try {
+          const patch = await callLLMJson(
+            STRUCTURAL_ENTITY_REPAIR_SYS,
+            `Entity: ${JSON.stringify(worldEnt || {})}\nFailed tests: ${row.failed.join(", ")}\nBrief: ${JSON.stringify(brief)}`,
+            CONFIG.temperature.world
+          );
+          if (patch.delete && !row.is_main) {
+            world.entities = world.entities.filter(e => e.name !== row.name);
+            delete world.sim.ents[row.name];
+            logLines.push(`[Veto Structural] Deleted prop "${row.name}": ${patch.why || ""}`);
+          } else if (patch.repair && worldEnt) {
+            Object.assign(worldEnt, patch.repair);
+            if (simEnt) {
+              if (patch.repair.reason) simEnt.reason = patch.repair.reason;
+              if (patch.repair.t_minus_1) simEnt.t_minus_1 = patch.repair.t_minus_1;
+              if (patch.repair.t_plus_1) simEnt.t_plus_1 = patch.repair.t_plus_1;
+              if (patch.repair.goal) simEnt.goal = patch.repair.goal;
+              if (patch.repair.D) simEnt.D = clamp(Number(patch.repair.D) || simEnt.D, 1, 100);
+            }
+            logLines.push(`[Veto Structural] Repaired autonomy fields for "${row.name}".`);
+          }
+        } catch (err) {
+          dbg(`Entity repair warning (${row.name}): ${err.message}`);
+        }
+      }
+    } else {
+      setStatus(`Veto pass: discovering reason/trajectory for "${row.name}"…`);
+      try {
+        const patch = await callLLMJson(
+          STRUCTURAL_ENTITY_REPAIR_SYS,
+          `Entity: ${JSON.stringify(world.entities.find(e => e.name === row.name) || {})}\nFailed tests: ${row.failed.join(", ")}\nIntake: ${JSON.stringify(intakeObj)}`,
+          CONFIG.temperature.world
+        );
+        if (patch.delete && !row.is_main) {
+          world.entities = world.entities.filter(e => e.name !== row.name);
+          logLines.push(`[Veto Structural] Removed "${row.name}": ${patch.why || ""}`);
+        } else if (patch.repair) {
+          const target = world.entities.find(e => e.name === row.name);
+          if (target) Object.assign(target, patch.repair);
+          logLines.push(`[Veto Structural] Updated "${row.name}" reason & trajectory.`);
+        }
+      } catch (err) {
+        dbg(`Non-sim entity repair warning (${row.name}): ${err.message}`);
+      }
+    }
+  }
+}
+
+/* ============================================================================
+ * MAIN PIPELINE ORCHESTRATOR
+ * ============================================================================ */
+async function runPipeline() {
+  const prompt = $("prompt").value.trim();
+  if (!prompt || RUNNING) return;
+
+  RUNNING = true;
+  RUN_ABORT = new AbortController();
+  $("go").disabled = true;
+  $("stop").disabled = false;
+  $("cTest").disabled = true;
+
+  const intake = {
+    occ: $("iOcc").value.trim(),
+    add: $("iAdd").value.trim(),
+    spec: $("iSpec").value.split("\n").map(s => s.trim()).filter(Boolean)
+  };
+  const intakeCombined = [intake.occ, intake.add, ...intake.spec].join(" ");
+  const maxPasses = clamp(parseInt($("cMaxPasses").value, 10) || CONFIG.maxVetoPasses, 1, 5);
+
+  ["vet", "brf", "wld", "log"].forEach(id => { $(id).textContent = ""; });
+  $("out").textContent = "";
+
+  try {
+    // 1. Brief (SAOEF + Depth)
+    setStatus("Step 1/4: Analyzing SAOEF brief & Depth…");
+    const brief = await callLLMJson(
+      BRIEF_SYS,
+      `User Request: ${prompt}\nUser Intake: ${JSON.stringify(intake)}`,
+      CONFIG.temperature.brief
+    );
+    if (!Object.prototype.hasOwnProperty.call(FORMS, brief.category)) {
+      brief.category = "narrative";
+    }
+    brief.depth = typeof brief.depth === "number"
+      ? clamp(brief.depth, 0, 1)
+      : FORMS[brief.category].depth;
+    brief.F = brief.F && typeof brief.F === "object"
+      ? brief.F
+      : { meter: "", rhyme: "", length: "", medium: "read" };
+
+    $("brf").textContent = JSON.stringify(brief, null, 2);
+
+    if (brief.category === "personal" && (!intake.occ || !intake.add || intake.spec.length < 2)) {
+      $("out").textContent =
+        "Personal writing requires intake before generation: provide Occasion, Addressee, and at least 2 true specifics in the Intake panel. Scribe never invents your personal facts.";
+      setStatus("Paused: awaiting personal intake.");
+      return;
+    }
+
+    // 2. World Simulation & Causal Graph
+    const useSimGraph = (brief.category === "narrative" || brief.category === "comedic");
+    let world = null;
+    let beatsText = "";
+
+    setStatus("Step 2/4: Simulating autonomous world & causal chains…");
+    if (useSimGraph) {
+      const prevEff = OVERRIDE_EFFORT;
+      OVERRIDE_EFFORT = "minimal";
+      let rawSetup;
+      try {
+        rawSetup = await callLLMJson(
+          WORLD_SIM_SYS,
+          `Brief: ${JSON.stringify(brief)}\nIntake: ${JSON.stringify(intake)}`,
+          CONFIG.temperature.world
+        );
+      } finally {
+        OVERRIDE_EFFORT = prevEff;
+      }
+      world = await buildValidatedSimulation(rawSetup, prompt);
+      beatsText = compileBeats(world, brief);
+    } else {
+      world = await callLLMJson(
+        `You are Scribe's world-grounding stage for ${brief.category} (${FORMS[brief.category].veto}).
+Output JSON with:
+{
+  "setting": "string",
+  "C_t_minus_1": "why this text exists now",
+  "world_t_plus_1": "intended shift after reading/hearing",
+  "entities": [
+    { "name": "string", "type": "human|env|institution|abstract", "is_main": true, "reason": "autonomous reason", "t_minus_1": "prior state", "t_now": "present state", "t_plus_1": "aftermath", "D": 40 }
+  ],
+  "concrete_details": ["specific grounded detail"],
+  "avoid": ["cliché or stock trope"]
+}
+For personal forms, use ONLY facts in intake.`,
+        `Brief: ${JSON.stringify(brief)}\nIntake: ${JSON.stringify(intake)}`,
+        CONFIG.temperature.world
+      );
+      world.entities = Array.isArray(world.entities) ? world.entities : [];
+      world.events = Array.isArray(world.events) ? world.events : [];
+    }
+
+    // 3. Initial Render
+    const mainEntity = (world.entities || []).find(e => e.is_main) || (world.entities || [])[0];
+    setStatus(`Step 3/4: Rendering ${brief.category} from simulated state…`);
+
+    let draft = "";
+    let simRenderPrompt = "";
+    if (useSimGraph) {
+      const driveSummary = Object.values(world.sim.ents)
+        .filter(e => e.damage > 0)
+        .map(e => `${e.name}: R(t+1) drive remaining ${(1 - e.damage).toFixed(2)}`)
+        .join("; ") || "all drives intact";
+
+      simRenderPrompt =
+        `Brief: ${JSON.stringify(brief)}\n` +
+        `Main Entity (X0): ${mainEntity?.name || "protagonist"} (goal: ${mainEntity?.goal || ""})\n` +
+        `Causal Context: C(t-1) = "${world.C_t_minus_1}" -> World(t+1) = "${world.world_t_plus_1}"\n` +
+        `Post-Impact Drive Decay: ${driveSummary}\n` +
+        `BEATS:\n${beatsText}`;
+
+      draft = await callLLM(RENDER_SIM_SYS, simRenderPrompt, CONFIG.temperature.render);
+
+      const minWords = brief.category === "narrative" ? 500 : 320;
+      if (wc(draft) < minWords) {
+        const w0 = wc(draft);
+        setStatus(`Draft is ${w0} words; expanding into full dramatized scenes…`);
+        dbg(`Draft below target word count (${w0} < ${minWords}); requesting full expansion`);
+        const expanded = await callLLM(
+          RENDER_SIM_SYS,
+          `${simRenderPrompt}\n\nYour previous draft was only ${w0} words. Write the full piece (${minWords + 150} to ${minWords + 450} words) with concrete scenes, dialogue, and physical cause-and-effect.`,
+          CONFIG.temperature.render
+        );
+        if (wc(expanded) > w0) draft = expanded;
+      }
+    } else {
+      draft = await callLLM(
+        RENDER_GENERAL_SYS,
+        `Brief: ${JSON.stringify(brief)}\nWorld: ${JSON.stringify(world)}\nIntake: ${JSON.stringify(intake)}`,
+        CONFIG.temperature.render
+      );
+    }
+
+    draft = cleanTypography(draft, brief.category);
+
+    // 4. Veto Pass Loop (AWEA ÷ Veto)
+    const history = [];
+    const logEntries = [];
+    let finalDraft = draft;
+    let firstMetrics = null;
+    let lastMetrics = null;
+    let passedAll = false;
+    let latestAWE = null;
+
+    for (let pass = 1; pass <= maxPasses; pass++) {
+      setStatus(`Step 4/4 · Veto pass ${pass}/${maxPasses}: evaluating AWE formulas & causal integrity…`);
+      latestAWE = computeAWE(world, brief, draft);
+
+      if (useSimGraph) {
+        beatsText = compileBeats(world, brief);
+      }
+
+      setStatus(`Step 4/4 · Veto pass ${pass}/${maxPasses}: independent critic pass…`);
+      let criticIssues = [];
+      try {
+        const criticRes = await callLLMJson(
+          CRITIC_SYS,
+          `Category: ${brief.category} | Veto focus: ${FORMS[brief.category].veto}\n` +
+          `Brief: ${JSON.stringify(brief)}\n` +
+          `World summary: ${JSON.stringify({ setting: world.setting, C_t_minus_1: world.C_t_minus_1, world_t_plus_1: world.world_t_plus_1 })}\n` +
+          `Intake: ${JSON.stringify(intake)}\n` +
+          `Draft:\n${draft}`,
+          CONFIG.temperature.critic
+        );
+        criticIssues = (criticRes.issues || []).map(it => ({ ...it, src: "critic" }));
+      } catch (err) {
+        logEntries.push(`[Pass ${pass}] Critic note: ${err.message}`);
+        dbg(`[Pass ${pass}] critic non-fatal error: ${err.message}`);
+      }
+
+      const ruleIssues = [
+        ...runLocalRuleChecks(draft, brief, world, intakeCombined),
+        ...latestAWE.issues
+      ].map(it => ({ ...it, src: "rule" }));
+
+      const issueKey = it => `${it.type}|${String(it.quote || "").toLowerCase()}`;
+      const seenKeys = new Set(ruleIssues.map(issueKey));
+      const mergedIssues = [
+        ...ruleIssues,
+        ...criticIssues.filter(it => !seenKeys.has(issueKey(it)))
+      ];
+
+      const qScore = computeQualityScore(mergedIssues, brief.depth);
+      const hasHardFail = mergedIssues.some(it => Boolean(it.hard));
+      const integrityOk = !latestAWE.rows.length || latestAWE.integrity >= latestAWE.threshold;
+      const isClean = !hasHardFail && qScore.score >= qScore.threshold && integrityOk;
+
+      const curMetrics = summarizeDraftMetrics(draft, mergedIssues);
+      if (!firstMetrics) firstMetrics = curMetrics;
+      lastMetrics = curMetrics;
+
+      history.push({
+        pass,
+        score: qScore.score,
+        score_threshold: qScore.threshold,
+        integrity: latestAWE.integrity,
+        integrity_threshold: latestAWE.threshold,
+        world_t: latestAWE.world_t,
+        band: latestAWE.band,
+        hard_failures: hasHardFail,
+        issues: mergedIssues
+      });
+
+      logEntries.push(`=== PASS ${pass} DRAFT (${wc(draft)} words, ${mergedIssues.length} issue(s)) ===\n${draft}\n`);
+      finalDraft = draft;
+
+      $("wld").textContent = JSON.stringify(
+        {
+          setting: world.setting,
+          C_t_minus_1: world.C_t_minus_1,
+          world_t_plus_1: world.world_t_plus_1,
+          violations_remaining: world.violations_remaining || [],
+          awe: {
+            integrity: latestAWE.integrity,
+            threshold: latestAWE.threshold,
+            band: latestAWE.band,
+            World_t: latestAWE.world_t,
+            formulas: latestAWE.formulas,
+            entities: latestAWE.rows,
+            events: latestAWE.events
+          },
+          beats: beatsText || undefined
+        },
+        null,
+        2
+      );
+
+      if (isClean) {
+        passedAll = true;
+        break;
+      }
+      if (pass === maxPasses) break;
+
+      await repairFailingEntitiesInWorld(world, latestAWE, brief, intake, logEntries);
+
+      setStatus(`Step 4/4 · Veto pass ${pass}/${maxPasses}: revising draft to resolve ${mergedIssues.length} issue(s)…`);
+      const issueBullets = mergedIssues
+        .map(it => `- [${it.type}] "${it.quote || ""}" -> ${it.fix || "fix"}`)
+        .join("\n");
+
+      const revisedRaw = await callLLM(
+        REVISE_SYS,
+        `Category: ${brief.category}\n` +
+        `Brief: ${JSON.stringify(brief)}\n` +
+        `Intake: ${JSON.stringify(intake)}\n` +
+        (useSimGraph ? `Active Beats:\n${compileBeats(world, brief)}\n` : `World: ${JSON.stringify(world)}\n`) +
+        `Issues to fix:\n${issueBullets}\n\n` +
+        `Current Draft:\n${draft}`,
+        CONFIG.temperature.revise
+      );
+
+      const revisedClean = cleanTypography(revisedRaw, brief.category);
+      if (useSimGraph && wc(revisedClean) < 0.72 * wc(draft)) {
+        logEntries.push(
+          `[Pass ${pass}] Rejected truncated revision (${wc(revisedClean)}w vs ${wc(draft)}w); retained prior draft.`
+        );
+        dbg(`[Pass ${pass}] revision rejected due to length drop (${wc(revisedClean)} vs ${wc(draft)})`);
+      } else {
+        draft = revisedClean;
+        finalDraft = draft;
+      }
+    }
+
+    $("out").textContent = finalDraft;
+    $("log").textContent = logEntries.join("\n");
+
+    const lastHist = history[history.length - 1];
+    const badgeClass = passedAll ? "ok" : lastHist.hard_failures ? "bad" : "warn";
+    $("vet").innerHTML =
+      `<span class="pill ${badgeClass}">${passedAll ? "PASSED VETO" : "COMPLETED WITH FLAGS"}</span> ` +
+      `Integrity: <strong>${lastHist.integrity}</strong> (threshold ${lastHist.integrity_threshold} @ depth ${brief.depth}, ${lastHist.band}) · ` +
+      `World(t): <strong>${lastHist.world_t}</strong> · ` +
+      `Score: <strong>${lastHist.score}</strong> / ${lastHist.score_threshold}\n` +
+      `First -> Final: clichés ${firstMetrics.cliche_hits} -> ${lastMetrics.cliche_hits} | ` +
+      `repetition flags ${firstMetrics.repetition_flags} -> ${lastMetrics.repetition_flags} | ` +
+      `issues ${firstMetrics.total_issues} -> ${lastMetrics.total_issues} | words ${firstMetrics.words} -> ${lastMetrics.words}\n\n` +
+      JSON.stringify(history, null, 2);
+
+    setStatus(passedAll ? "Done: passed Veto checks." : "Done: finished with remaining Veto notes.");
+  } catch (err) {
+    $("out").textContent = `Execution Error\n${err.message}\n\nCheck Step 4 (Execution & API Trace Log) below.`;
+    dbg("FATAL: " + err.message);
+    $("dbgd").open = true;
+    setStatus(`Failed at: ${STAGE}`);
+  } finally {
+    RUNNING = false;
+    RUN_ABORT = null;
+    $("go").disabled = false;
+    $("stop").disabled = true;
+    $("cTest").disabled = false;
+  }
+}
+
+/* ============================================================================
+ * UI CONTROLS, STORAGE & API TEST
+ * ============================================================================ */
+const storage = {
+  get(k) {
+    try { return localStorage.getItem(k); } catch (_) { return null; }
+  },
+  set(k, v) {
+    try { localStorage.setItem(k, v); } catch (_) {}
+  }
+};
+
+for (const field of ["url", "key", "model", "effort"]) {
+  const saved = storage.get("scribe_" + field);
+  if (saved !== null) CONFIG.api[field] = saved;
+}
+const savedPasses = storage.get("scribe_max_passes");
+if (savedPasses) $("cMaxPasses").value = savedPasses;
+
+$("cUrl").value = CONFIG.api.url;
+$("cKey").value = CONFIG.api.key;
+$("cModel").value = CONFIG.api.model;
+$("cEff").value = CONFIG.api.effort;
+
+function persistConfig() {
+  CONFIG.api.url = $("cUrl").value.trim();
+  CONFIG.api.key = $("cKey").value.trim();
+  CONFIG.api.model = $("cModel").value.trim().replace(/^models\//i, "");
+  CONFIG.api.effort = $("cEff").value.trim();
+  const mp = clamp(parseInt($("cMaxPasses").value, 10) || 2, 1, 5);
+  $("cMaxPasses").value = mp;
+
+  for (const field of ["url", "key", "model", "effort"]) {
+    storage.set("scribe_" + field, CONFIG.api[field]);
+  }
+  storage.set("scribe_max_passes", String(mp));
+}
+
+$("cSave").onclick = () => {
+  persistConfig();
+  $("cMsg").textContent = "Settings saved locally.";
+};
+
+$("cTest").onclick = async () => {
+  if (RUNNING) return;
+  persistConfig();
+  const msgEl = $("cMsg");
+  msgEl.textContent = "Testing endpoint and listing models…";
+  STAGE = "API test";
+
+  if (!CONFIG.api.url || !CONFIG.api.key) {
+    msgEl.textContent = "Enter both API URL and API key first.";
+    return;
+  }
+
+  try {
+    const baseUrl = CONFIG.api.url.replace(/\/chat\/completions\/?$/i, "");
+    const res = await fetch(baseUrl + "/models", {
+      headers: { "Authorization": "Bearer " + CONFIG.api.key }
+    });
+    const raw = await res.text();
+    if (!res.ok) throw makeHttpError(res.status, raw, "API test (/models)");
+
+    const modelIds = (JSON.parse(raw).data || []).map(m => String(m.id).replace(/^models\//i, ""));
+    const found = modelIds.includes(CONFIG.api.model);
+    const sampleGemini = modelIds.filter(id => /gemini/i.test(id)).slice(0, 8).join(", ");
+    msgEl.textContent =
+      `Authenticated (${modelIds.length} models visible).\n` +
+      `Model "${CONFIG.api.model}": ${found ? "AVAILABLE" : "NOT IN LIST"}${sampleGemini ? ` | Sample Gemini IDs: ${sampleGemini}` : ""}`;
+
+    if (found) {
+      STAGE = "API test (completion)";
+      const reply = await callLLM("Reply with the single word: ok", "ping", 0);
+      msgEl.textContent += `\nCompletion check passed: "${reply.slice(0, 50)}"`;
+    }
+    dbg("API test: " + msgEl.textContent.replace(/\n/g, " | "));
+  } catch (err) {
+    msgEl.textContent = err.message;
+    dbg("API test failed: " + err.message);
+    $("dbgd").open = true;
+  }
+};
+
+$("go").onclick = runPipeline;
+$("stop").onclick = () => {
+  if (RUNNING && RUN_ABORT) {
+    RUN_ABORT.abort();
+    setStatus("Cancelling…");
+  }
+};
+
+$("cp").onclick = async () => {
+  const txt = $("out").textContent;
+  if (!txt) return;
+  let copied = false;
+  try {
+    await navigator.clipboard.writeText(txt);
+    copied = true;
+  } catch (_) {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = txt;
+      document.body.appendChild(ta);
+      ta.select();
+      copied = document.execCommand("copy");
+      ta.remove();
+    } catch (_) {}
+  }
+  $("cp").textContent = copied ? "Copied" : "Copy failed";
+  setTimeout(() => { $("cp").textContent = "Copy Text"; }, 1500);
+};
+</script>
+</body>
+</html>
